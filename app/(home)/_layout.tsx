@@ -1,0 +1,125 @@
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '@/constants/Colors';
+import { View, StyleSheet } from 'react-native';
+
+export default function HomeLayout() {
+    return (
+        <Tabs
+            screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: Colors.primary,
+                tabBarInactiveTintColor: Colors.text.light,
+                tabBarStyle: styles.tabBar,
+                tabBarLabelStyle: styles.tabBarLabel,
+            }}
+        >
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Home',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="transactions"
+                options={{
+                    title: 'Transactions',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="add"
+                options={{
+                    title: '',
+                    tabBarIcon: ({ color }) => (
+                        <View style={styles.addButton}>
+                            <Ionicons name="add" size={28} color={Colors.white} />
+                        </View>
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="analytics"
+                options={{
+                    title: 'Analytics',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? 'pie-chart' : 'pie-chart-outline'} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Profile',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+                    ),
+                }}
+            />
+            {/* Hidden screens - accessible only through Profile */}
+            <Tabs.Screen
+                name="personal-info"
+                options={{
+                    href: null, // Hide from tab bar
+                }}
+            />
+            <Tabs.Screen
+                name="app-settings"
+                options={{
+                    href: null, // Hide from tab bar
+                }}
+            />
+            <Tabs.Screen
+                name="privacy-security"
+                options={{
+                    href: null, // Hide from tab bar
+                }}
+            />
+        </Tabs>
+    );
+}
+
+const styles = StyleSheet.create({
+    tabBar: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        height: 70,
+        paddingBottom: 10,
+        paddingTop: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 8,
+        borderTopWidth: 0,
+    },
+    tabBarLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        marginTop: 4,
+    },
+    addButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -20,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+});
