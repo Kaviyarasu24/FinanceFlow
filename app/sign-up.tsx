@@ -8,12 +8,17 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUpScreen() {
+    const router = useRouter();
+    const { signUp } = useAuth();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -21,6 +26,7 @@ export default function SignUpScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [agreeToTerms, setAgreeToTerms] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const [nameError, setNameError] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -81,7 +87,7 @@ export default function SignUpScreen() {
         }
     };
 
-    const handleSignUp = () => {
+    const handleSignUp = async () => {
         // Validate all fields
         let hasError = false;
 
@@ -109,8 +115,19 @@ export default function SignUpScreen() {
             return;
         }
 
-        // TODO: Implement sign-up logic
-        console.log('Sign up:', { fullName, email, password, confirmPassword, agreeToTerms });
+        setLoading(true);
+        const { error } = await signUp(email, password, fullName);
+        setLoading(false);
+
+        if (error) {
+            Alert.alert('Sign Up Error', error.message || 'Failed to create account');
+        } else {
+            Alert.alert(
+                'Success!',
+                'Account created successfully. Please check your email to verify your account.',
+                [{ text: 'OK', onPress: () => router.replace('/(home)') }]
+            );
+        }
     };
 
     const passwordStrength = password ? getPasswordStrength(password) : null;
@@ -258,11 +275,15 @@ export default function SignUpScreen() {
 
                     {/* Create Account Button */}
                     <TouchableOpacity
-                        style={[styles.createAccountButton, !isFormValid && styles.buttonDisabled]}
+                        style={[styles.createAccountButton, (!isFormValid || loading) && styles.buttonDisabled]}
                         onPress={handleSignUp}
-                        disabled={!isFormValid}
+                        disabled={!isFormValid || loading}
                     >
-                        <Text style={styles.createAccountButtonText}>Create Account</Text>
+                        {loading ? (
+                            <ActivityIndicator color={Colors.white} />
+                        ) : (
+                            <Text style={styles.createAccountButtonText}>Create Account</Text>
+                        )}
                     </TouchableOpacity>
 
                     {/* Sign In Link */}

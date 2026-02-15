@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,43 +8,55 @@ import {
     TouchableOpacity,
     Platform,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useCategories } from '@/hooks/useCategories';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TransactionType = 'expense' | 'income';
 
-const CATEGORIES = {
-    expense: [
-        { id: 'food', name: 'Food & Drinks', icon: 'restaurant-outline', color: '#F59E0B' },
-        { id: 'shopping', name: 'Shopping', icon: 'cart-outline', color: '#10B981' },
-        { id: 'transport', name: 'Transportation', icon: 'car-outline', color: '#3B82F6' },
-        { id: 'entertainment', name: 'Entertainment', icon: 'tv-outline', color: '#A855F7' },
-        { id: 'utilities', name: 'Utilities', icon: 'flash-outline', color: '#F59E0B' },
-        { id: 'health', name: 'Health', icon: 'fitness-outline', color: '#EF4444' },
-        { id: 'other', name: 'Other', icon: 'ellipsis-horizontal-outline', color: '#6B7280' },
-    ],
-    income: [
-        { id: 'salary', name: 'Salary', icon: 'wallet-outline', color: '#22C55E' },
-        { id: 'freelance', name: 'Freelance', icon: 'briefcase-outline', color: '#22C55E' },
-        { id: 'investment', name: 'Investment', icon: 'trending-up-outline', color: '#22C55E' },
-        { id: 'other', name: 'Other', icon: 'ellipsis-horizontal-outline', color: '#6B7280' },
-    ],
-};
+interface Category {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+    type: 'income' | 'expense';
+}
 
 export default function AddTransactionScreen() {
+    const { user } = useAuth();
+    const { categories, loading: categoriesLoading } = useCategories();
+    const { addTransaction } = useTransactions();
+
     const [type, setType] = useState<TransactionType>('expense');
     const [amount, setAmount] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(CATEGORIES.expense[0]);
+    const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [notes, setNotes] = useState('');
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    // Set initial category when categories load
+    useEffect(() => {
+        if (categories.length > 0 && !selectedCategory) {
+            const expenseCategories = categories.filter(c => c.type === 'expense');
+            if (expenseCategories.length > 0) {
+                setSelectedCategory(expenseCategories[0]);
+            }
+        }
+    }, [categories]);
 
     const handleTypeChange = (newType: TransactionType) => {
         setType(newType);
-        setSelectedCategory(CATEGORIES[newType][0]);
+        const filteredCategories = categories.filter(c => c.type === newType);
+        if (filteredCategories.length > 0) {
+            setSelectedCategory(filteredCategories[0]);
+        }
     };
 
     const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -54,37 +66,52 @@ export default function AddTransactionScreen() {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!amount || parseFloat(amount) <= 0) {
             Alert.alert('Error', 'Please enter a valid amount');
             return;
         }
 
-        // TODO: Save transaction to storage/backend
-        const transaction = {
+        if (!selectedCategory) {
+            Alert.alert('Error', 'Please select a category');
+            return;
+        }
+
+        if (!user) {
+            Alert.alert('Error', 'You must be logged in to add transactions');
+            return;
+        }
+
+        setSaving(true);
+        const { error } = await addTransaction({
+            user_id: user.id,
             type,
             amount: parseFloat(amount),
-            category: selectedCategory.id,
-            date: date.toISOString(),
-            notes,
-        };
+            category_id: selectedCategory.id,
+            date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            notes: notes || null,
+        });
+        setSaving(false);
 
-        console.log('Saving transaction:', transaction);
-        Alert.alert(
-            'Success',
-            `${type === 'income' ? 'Income' : 'Expense'} of $${amount} added successfully!`,
-            [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        // Reset form
-                        setAmount('');
-                        setNotes('');
-                        setDate(new Date());
+        if (error) {
+            Alert.alert('Error', error);
+        } else {
+            Alert.alert(
+                'Success',
+                `${type === 'income' ? 'Income' : 'Expense'} of $${amount} added successfully!`,
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Reset form
+                            setAmount('');
+                            setNotes('');
+                            setDate(new Date());
+                        },
                     },
-                },
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const formatDate = (date: Date) => {
@@ -94,6 +121,17 @@ export default function AddTransactionScreen() {
             year: 'numeric',
         });
     };
+
+    const currentCategories = categories.filter(c => c.type === type);
+
+    if (categoriesLoading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading categories...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -169,21 +207,25 @@ export default function AddTransactionScreen() {
                         style={styles.categoryButton}
                         onPress={() => setShowCategoryPicker(!showCategoryPicker)}
                     >
-                        <View style={styles.categoryButtonLeft}>
-                            <View
-                                style={[
-                                    styles.categoryIcon,
-                                    { backgroundColor: `${selectedCategory.color}20` },
-                                ]}
-                            >
-                                <Ionicons
-                                    name={selectedCategory.icon as any}
-                                    size={20}
-                                    color={selectedCategory.color}
-                                />
+                        {selectedCategory ? (
+                            <View style={styles.categoryButtonLeft}>
+                                <View
+                                    style={[
+                                        styles.categoryIcon,
+                                        { backgroundColor: `${selectedCategory.color}20` },
+                                    ]}
+                                >
+                                    <Ionicons
+                                        name={selectedCategory.icon as any}
+                                        size={20}
+                                        color={selectedCategory.color}
+                                    />
+                                </View>
+                                <Text style={styles.categoryButtonText}>{selectedCategory.name}</Text>
                             </View>
-                            <Text style={styles.categoryButtonText}>{selectedCategory.name}</Text>
-                        </View>
+                        ) : (
+                            <Text style={styles.categoryButtonText}>Select a category</Text>
+                        )}
                         <Ionicons
                             name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
                             size={20}
@@ -193,7 +235,7 @@ export default function AddTransactionScreen() {
 
                     {showCategoryPicker && (
                         <View style={styles.categoryList}>
-                            {CATEGORIES[type].map((category) => (
+                            {currentCategories.map((category) => (
                                 <TouchableOpacity
                                     key={category.id}
                                     style={styles.categoryItem}
@@ -208,7 +250,7 @@ export default function AddTransactionScreen() {
                                         <Ionicons name={category.icon as any} size={20} color={category.color} />
                                     </View>
                                     <Text style={styles.categoryItemText}>{category.name}</Text>
-                                    {selectedCategory.id === category.id && (
+                                    {selectedCategory?.id === category.id && (
                                         <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
                                     )}
                                 </TouchableOpacity>
@@ -252,8 +294,16 @@ export default function AddTransactionScreen() {
                 </View>
 
                 {/* Save Button */}
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Transaction</Text>
+                <TouchableOpacity
+                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                    onPress={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? (
+                        <ActivityIndicator color={Colors.white} />
+                    ) : (
+                        <Text style={styles.saveButtonText}>Save Transaction</Text>
+                    )}
                 </TouchableOpacity>
 
                 {/* Bottom spacing for tab bar */}
@@ -427,10 +477,23 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
     },
+    saveButtonDisabled: {
+        backgroundColor: Colors.text.light,
+        opacity: 0.6,
+    },
     saveButtonText: {
         fontSize: 16,
         fontWeight: '700',
         color: Colors.white,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: Colors.text.secondary,
     },
     bottomSpacing: {
         height: 100,

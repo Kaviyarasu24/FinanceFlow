@@ -7,16 +7,21 @@ import {
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();
+    const { resetPassword } = useAuth();
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,7 +37,7 @@ export default function ForgotPasswordScreen() {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!email) {
             setEmailError('Email is required');
             return;
@@ -42,9 +47,15 @@ export default function ForgotPasswordScreen() {
             return;
         }
 
-        // TODO: Implement password reset logic
-        console.log('Password reset requested for:', email);
-        setSubmitted(true);
+        setLoading(true);
+        const { error } = await resetPassword(email);
+        setLoading(false);
+
+        if (error) {
+            Alert.alert('Error', error.message || 'Failed to send reset email');
+        } else {
+            setSubmitted(true);
+        }
     };
 
     if (submitted) {
@@ -107,11 +118,15 @@ export default function ForgotPasswordScreen() {
 
                 {/* Submit Button */}
                 <TouchableOpacity
-                    style={[styles.submitButton, (!email || emailError) && styles.submitButtonDisabled]}
+                    style={[styles.submitButton, (!email || emailError || loading) && styles.submitButtonDisabled]}
                     onPress={handleSubmit}
-                    disabled={!email || !!emailError}
+                    disabled={!email || !!emailError || loading}
                 >
-                    <Text style={styles.submitButtonText}>Send Reset Link</Text>
+                    {loading ? (
+                        <ActivityIndicator color={Colors.white} />
+                    ) : (
+                        <Text style={styles.submitButtonText}>Send Reset Link</Text>
+                    )}
                 </TouchableOpacity>
 
                 {/* Back to Sign In */}

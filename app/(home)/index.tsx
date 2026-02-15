@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -6,31 +6,162 @@ import {
     ScrollView,
     TouchableOpacity,
     Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useCurrency } from '@/hooks/useCurrency';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
+    const { user } = useAuth();
+    const { transactions, loading } = useTransactions();
+    const { formatAmount } = useCurrency();
+    const [profile, setProfile] = useState<any>(null);
+    const [categories, setCategories] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetchProfile();
+        fetchCategories();
+    }, [user]);
+
+    const fetchProfile = async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+        if (data) setProfile(data);
+    };
+
+    const fetchCategories = async () => {
+        const { data } = await supabase
+            .from('categories')
+            .select('*');
+        if (data) setCategories(data);
+    };
+
+    // Calculate statistics from transactions
+    const stats = useMemo(() => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const monthlyTransactions = transactions.filter(t => {
+            const date = new Date(t.date);
+            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        });
+
+        const totalSpent = monthlyTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const totalIncome = monthlyTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // Calculate weekly spending for chart
+        const weeklyData = Array(7).fill(0);
+        const today = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+        transactions.forEach(t => {
+            if (t.type === 'expense') {
+                const transactionDate = new Date(t.date);
+                const daysDiff = Math.floor((now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysDiff >= 0 && daysDiff < 7) {
+                    const dayIndex = (7 - daysDiff) % 7;
+                    weeklyData[dayIndex] += t.amount;
+                }
+            }
+        });
+
+        const weekTotal = weeklyData.reduce((sum, val) => sum + val, 0);
+
+        // Calculate top categories
+        const categoryTotals: any = {};
+        monthlyTransactions
+            .filter(t => t.type === 'expense')
+            .forEach(t => {
+                if (!categoryTotals[t.category_id]) {
+                    categoryTotals[t.category_id] = { total: 0, count: 0 };
+                }
+                categoryTotals[t.category_id].total += t.amount;
+                categoryTotals[t.category_id].count += 1;
+            });
+
+        const topCategories = Object.entries(categoryTotals)
+            .map(([categoryId, data]: [string, any]) => {
+                const category = categories.find(c => c.id === categoryId);
+                return {
+                    id: categoryId,
+                    name: category?.name || 'Unknown',
+                    icon: category?.icon || 'help-circle-outline',
+                    color: category?.color || '#6B7280',
+                    total: data.total,
+                    count: data.count,
+                };
+            })
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 3);
+
+        return {
+            totalSpent,
+            totalIncome,
+            remaining: totalIncome - totalSpent,
+            weeklyData,
+            weekTotal,
+            topCategories,
+        };
+    }, [transactions, categories]);
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 18) return 'Good afternoon';
+        return 'Good evening';
+    };
+
+    const getInitials = (name: string) => {
+        return name
+            .split(' ')
+            .map(n => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
                     <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>SC</Text>
+                        <Text style={styles.avatarText}>
+                            {profile?.full_name ? getInitials(profile.full_name) : (user?.email?.[0]?.toUpperCase() || 'U')}
+                        </Text>
                     </View>
                     <View>
-                        <Text style={styles.greeting}>Good morning,</Text>
-                        <Text style={styles.userName}>Sarah</Text>
+                        <Text style={styles.greeting}>{getGreeting()},</Text>
+                        <Text style={styles.userName}>
+                            {profile?.full_name || user?.email?.split('@')[0] || 'User'}
+                        </Text>
                     </View>
                 </View>
                 <TouchableOpacity style={styles.notificationButton}>
                     <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
-                    <View style={styles.notificationBadge}>
-                        <Text style={styles.notificationBadgeText}>3</Text>
-                    </View>
                 </TouchableOpacity>
             </View>
 
@@ -46,26 +177,26 @@ export default function HomeScreen() {
                             <Ionicons name="wallet-outline" size={20} color={Colors.white} />
                         </View>
                         <Text style={styles.statLabel}>Total Spent</Text>
-                        <Text style={styles.statValue}>$2,458</Text>
+                        <Text style={styles.statValue}>{formatAmount(stats.totalSpent)}</Text>
                         <Text style={styles.statSubtext}>this month</Text>
                     </View>
 
                     <View style={[styles.statCard, styles.statCardLight]}>
                         <View style={[styles.statIconContainer, styles.statIconGray]}>
-                            <Ionicons name="time-outline" size={20} color={Colors.text.secondary} />
+                            <Ionicons name="trending-up-outline" size={20} color={Colors.text.secondary} />
                         </View>
-                        <Text style={[styles.statLabel, styles.statLabelDark]}>Remaining</Text>
-                        <Text style={[styles.statValue, styles.statValueDark]}>$1,542</Text>
-                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>of $4,000</Text>
+                        <Text style={[styles.statLabel, styles.statLabelDark]}>Total Income</Text>
+                        <Text style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.totalIncome)}</Text>
+                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>this month</Text>
                     </View>
 
                     <View style={[styles.statCard, styles.statCardOrange]}>
                         <View style={[styles.statIconContainer, styles.statIconOrange]}>
-                            <Ionicons name="calendar-outline" size={20} color="#F59E0B" />
+                            <Ionicons name="cash-outline" size={20} color="#F59E0B" />
                         </View>
-                        <Text style={[styles.statLabel, styles.statLabelDark]}>Upcoming</Text>
-                        <Text style={[styles.statValue, styles.statValueDark]}>$380</Text>
-                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>3 bills</Text>
+                        <Text style={[styles.statLabel, styles.statLabelDark]}>Balance</Text>
+                        <Text style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.remaining)}</Text>
+                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>remaining</Text>
                     </View>
                 </View>
 
@@ -73,11 +204,13 @@ export default function HomeScreen() {
                 <View style={styles.chartCard}>
                     <View style={styles.chartHeader}>
                         <Text style={styles.chartTitle}>This Week</Text>
-                        <Text style={styles.chartTotal}>$458 total</Text>
+                        <Text style={styles.chartTotal}>${stats.weekTotal.toFixed(2)} total</Text>
                     </View>
                     <View style={styles.barChart}>
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
-                            const heights = [40, 30, 60, 45, 80, 50, 90];
+                            const maxHeight = Math.max(...stats.weeklyData, 1);
+                            const height = (stats.weeklyData[index] / maxHeight) * 100;
+                            const isToday = index === new Date().getDay();
                             return (
                                 <View key={day} style={styles.barContainer}>
                                     <View style={styles.barWrapper}>
@@ -85,8 +218,8 @@ export default function HomeScreen() {
                                             style={[
                                                 styles.bar,
                                                 {
-                                                    height: heights[index],
-                                                    backgroundColor: index === 6 ? Colors.primary : '#E5E7EB',
+                                                    height: height || 10,
+                                                    backgroundColor: isToday ? Colors.primary : '#E5E7EB',
                                                 },
                                             ]}
                                         />
@@ -122,56 +255,34 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* By Category */}
+                {/* Top Categories */}
                 <View style={styles.categoryCard}>
                     <View style={styles.categoryHeader}>
-                        <Text style={styles.categoryTitle}>By Category</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.seeAllButton}>See all</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.categoryTitle}>Top Categories</Text>
+                        <Text style={styles.categorySubtitle}>This month</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.categoryItem}>
-                        <View style={styles.categoryLeft}>
-                            <View style={[styles.categoryIcon, { backgroundColor: '#D1FAE5' }]}>
-                                <Ionicons name="cart-outline" size={20} color="#10B981" />
-                            </View>
-                            <Text style={styles.categoryName}>Shopping</Text>
-                        </View>
-                        <View style={styles.categoryRight}>
-                            <Text style={styles.categoryAmount}>$342.50</Text>
-                            <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.categoryItem}>
-                        <View style={styles.categoryLeft}>
-                            <View style={[styles.categoryIcon, { backgroundColor: '#FEF3C7' }]}>
-                                <Ionicons name="restaurant-outline" size={20} color="#F59E0B" />
-                            </View>
-                            <Text style={styles.categoryName}>Food & Dining</Text>
-                        </View>
-                        <View style={styles.categoryRight}>
-                            <Text style={styles.categoryAmount}>$218.30</Text>
-                            <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.categoryItem}>
-                        <View style={styles.categoryLeft}>
-                            <View style={[styles.categoryIcon, { backgroundColor: '#DBEAFE' }]}>
-                                <Ionicons name="car-outline" size={20} color="#3B82F6" />
-                            </View>
-                            <Text style={styles.categoryName}>Transportation</Text>
-                        </View>
-                        <View style={styles.categoryRight}>
-                            <Text style={styles.categoryAmount}>$156.80</Text>
-                            <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Last Updated */}
-                    <Text style={styles.lastUpdated}>Last updated: 11:38 am</Text>
+                    {stats.topCategories.length > 0 ? (
+                        stats.topCategories.map((cat: any, index: number) => (
+                            <TouchableOpacity key={index} style={styles.categoryItem}>
+                                <View style={styles.categoryLeft}>
+                                    <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
+                                        <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.categoryName}>{cat.name}</Text>
+                                        <Text style={styles.categorySubtext}>{cat.count} transactions</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.categoryRight}>
+                                    <Text style={styles.categoryAmount}>${cat.total.toFixed(2)}</Text>
+                                    <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <Text style={styles.emptyText}>No transactions this month</Text>
+                    )}
                 </View>
 
                 {/* Bottom spacing for tab bar */}
@@ -185,6 +296,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background.primary,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',

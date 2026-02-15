@@ -1,24 +1,128 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useCurrency } from '@/hooks/useCurrency';
 
 const { width } = Dimensions.get('window');
 
 export default function AnalyticsScreen() {
+    const { transactions, loading } = useTransactions();
+    const { formatAmount, getCurrencySymbol } = useCurrency();
+
+    // Calculate analytics data
+    const analytics = useMemo(() => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        // Current month transactions
+        const currentMonthTrans = transactions.filter(t => {
+            const date = new Date(t.date);
+            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        });
+
+        const income = currentMonthTrans
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const expense = currentMonthTrans
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+        const savings = income - expense;
+
+        // Last 6 months data
+        const monthlyData = [];
+        for (let i = 5; i >= 0; i--) {
+            const targetDate = new Date(currentYear, currentMonth - i, 1);
+            const monthTrans = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date.getMonth() === targetDate.getMonth() &&
+                    date.getFullYear() === targetDate.getFullYear();
+            });
+
+            const monthIncome = monthTrans
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const monthExpense = monthTrans
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            monthlyData.push({
+                month: targetDate.toLocaleDateString('en-US', { month: 'short' }),
+                income: monthIncome,
+                expense: monthExpense,
+            });
+        }
+
+        // Category breakdown (expenses only)
+        const categoryTotals: any = {};
+        let totalExpense = 0;
+        currentMonthTrans
+            .filter(t => t.type === 'expense')
+            .forEach(t => {
+                if (!categoryTotals[t.category_id]) {
+                    categoryTotals[t.category_id] = 0;
+                }
+                categoryTotals[t.category_id] += t.amount;
+                totalExpense += t.amount;
+            });
+
+        const categoryBreakdown = Object.entries(categoryTotals)
+            .map(([id, amount]: [string, any]) => ({
+                id,
+                amount,
+                percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+            }))
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 4);
+
+        return {
+            income,
+            expense,
+            savingsRate,
+            savings,
+            monthlyData,
+            categoryBreakdown,
+        };
+    }, [transactions]);
+
+    const getMonthYear = () => {
+        const now = new Date();
+        return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
+    const maxValue = Math.max(...analytics.monthlyData.map(d => Math.max(d.income, d.expense)), 1);
+
+    const categoryColors = ['#F97316', '#3B82F6', '#EC4899', '#A855F7'];
+    const categoryNames = ['Food', 'Transport', 'Shopping', 'Other'];
+
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>Analytics</Text>
-                    <Text style={styles.headerSubtitle}>January 2026</Text>
+                    <Text style={styles.headerSubtitle}>{getMonthYear()}</Text>
                 </View>
             </View>
 
@@ -34,8 +138,8 @@ export default function AnalyticsScreen() {
                             <Ionicons name="trending-up-outline" size={20} color="#22C55E" />
                             <Text style={styles.statLabel}>Income</Text>
                         </View>
-                        <Text style={styles.statValue}>$4,500</Text>
-                        <Text style={styles.statChange}>+12% vs last month</Text>
+                        <Text style={styles.statValue}>{formatAmount(analytics.income)}</Text>
+                        <Text style={styles.statChange}>This month</Text>
                     </View>
 
                     <View style={styles.statCard}>
@@ -43,88 +147,59 @@ export default function AnalyticsScreen() {
                             <Ionicons name="trending-down-outline" size={20} color="#EF4444" />
                             <Text style={styles.statLabel}>Expense</Text>
                         </View>
-                        <Text style={styles.statValue}>$3,200</Text>
-                        <Text style={styles.statChangeNegative}>+8% vs last month</Text>
+                        <Text style={styles.statValue}>{formatAmount(analytics.expense)}</Text>
+                        <Text style={styles.statChangeNegative}>This month</Text>
                     </View>
                 </View>
 
                 {/* Spending by Category */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Spending by Category</Text>
+                    <Text style={styles.cardTitle}>Top Spending Categories</Text>
 
-                    {/* Donut Chart Placeholder */}
-                    <View style={styles.chartContainer}>
-                        <View style={styles.donutChart}>
-                            {/* Outer ring segments */}
-                            <View style={[styles.donutSegment, styles.segment1]} />
-                            <View style={[styles.donutSegment, styles.segment2]} />
-                            <View style={[styles.donutSegment, styles.segment3]} />
-                            <View style={[styles.donutSegment, styles.segment4]} />
-                            {/* Center hole */}
-                            <View style={styles.donutHole} />
-                        </View>
-
-                        {/* Legend */}
+                    {analytics.categoryBreakdown.length > 0 ? (
                         <View style={styles.legend}>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#F97316' }]} />
-                                <Text style={styles.legendText}>Food & Drinks</Text>
-                                <Text style={styles.legendPercent}>30%</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
-                                <Text style={styles.legendText}>Transport</Text>
-                                <Text style={styles.legendPercent}>19%</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#EC4899' }]} />
-                                <Text style={styles.legendText}>Shopping</Text>
-                                <Text style={styles.legendPercent}>21%</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#A855F7' }]} />
-                                <Text style={styles.legendText}>Entertainment</Text>
-                                <Text style={styles.legendPercent}>12%</Text>
-                            </View>
+                            {analytics.categoryBreakdown.map((cat, index) => (
+                                <View key={cat.id} style={styles.legendItem}>
+                                    <View style={[styles.legendDot, { backgroundColor: categoryColors[index] }]} />
+                                    <Text style={styles.legendText}>{categoryNames[index] || 'Category'}</Text>
+                                    <Text style={styles.legendPercent}>{cat.percentage.toFixed(1)}%</Text>
+                                </View>
+                            ))}
                         </View>
-                    </View>
+                    ) : (
+                        <Text style={styles.emptyText}>No expense data for this month</Text>
+                    )}
                 </View>
 
                 {/* Income vs Expense Chart */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Income vs Expense</Text>
+                    <Text style={styles.cardTitle}>Income vs Expense (Last 6 Months)</Text>
 
                     <View style={styles.barChartContainer}>
                         {/* Y-axis labels */}
                         <View style={styles.yAxis}>
-                            <Text style={styles.yAxisLabel}>$4k</Text>
-                            <Text style={styles.yAxisLabel}>$3k</Text>
-                            <Text style={styles.yAxisLabel}>$2k</Text>
-                            <Text style={styles.yAxisLabel}>$1k</Text>
-                            <Text style={styles.yAxisLabel}>$0</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue).toFixed(0)}</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.75).toFixed(0)}</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.5).toFixed(0)}</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.25).toFixed(0)}</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}0</Text>
                         </View>
 
                         {/* Bar Chart */}
                         <View style={styles.barChart}>
-                            {[
-                                { income: 70, expense: 60 },
-                                { income: 85, expense: 70 },
-                                { income: 75, expense: 65 },
-                                { income: 90, expense: 75 },
-                                { income: 80, expense: 70 },
-                                { income: 95, expense: 80 },
-                                { income: 85, expense: 75 },
-                            ].map((data, index) => (
-                                <View key={index} style={styles.barGroup}>
-                                    <View style={styles.barPair}>
-                                        <View style={[styles.bar, styles.incomeBar, { height: `${data.income}%` }]} />
-                                        <View style={[styles.bar, styles.expenseBar, { height: `${data.expense}%` }]} />
+                            {analytics.monthlyData.map((data, index) => {
+                                const incomeHeight = (data.income / maxValue) * 100;
+                                const expenseHeight = (data.expense / maxValue) * 100;
+                                return (
+                                    <View key={index} style={styles.barGroup}>
+                                        <View style={styles.barPair}>
+                                            <View style={[styles.bar, styles.incomeBar, { height: `${incomeHeight || 5}%` }]} />
+                                            <View style={[styles.bar, styles.expenseBar, { height: `${expenseHeight || 5}%` }]} />
+                                        </View>
+                                        <Text style={styles.barLabel}>{data.month}</Text>
                                     </View>
-                                    <Text style={styles.barLabel}>
-                                        {['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'][index]}
-                                    </Text>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     </View>
 
@@ -145,8 +220,10 @@ export default function AnalyticsScreen() {
                 <View style={styles.savingsCard}>
                     <View style={styles.savingsLeft}>
                         <Text style={styles.savingsLabel}>Savings Rate</Text>
-                        <Text style={styles.savingsValue}>28.9%</Text>
-                        <Text style={styles.savingsSubtext}>You are saving $1,300 this month</Text>
+                        <Text style={styles.savingsValue}>{analytics.savingsRate.toFixed(1)}%</Text>
+                        <Text style={styles.savingsSubtext}>
+                            You are {analytics.savings >= 0 ? 'saving' : 'overspending'} {formatAmount(Math.abs(analytics.savings))} this month
+                        </Text>
                     </View>
                     <View style={styles.savingsIcon}>
                         <Ionicons name="cash-outline" size={32} color={Colors.primary} />
@@ -164,6 +241,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background.primary,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         backgroundColor: Colors.white,
@@ -235,59 +316,7 @@ const styles = StyleSheet.create({
         color: Colors.text.primary,
         marginBottom: 20,
     },
-    chartContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 24,
-    },
-    donutChart: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        position: 'relative',
-        backgroundColor: '#F97316',
-        overflow: 'hidden',
-    },
-    donutSegment: {
-        position: 'absolute',
-        width: '50%',
-        height: '50%',
-    },
-    segment1: {
-        top: 0,
-        left: 0,
-        backgroundColor: '#F97316',
-        borderTopLeftRadius: 60,
-    },
-    segment2: {
-        top: 0,
-        right: 0,
-        backgroundColor: '#3B82F6',
-        borderTopRightRadius: 60,
-    },
-    segment3: {
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#EC4899',
-        borderBottomRightRadius: 60,
-    },
-    segment4: {
-        bottom: 0,
-        left: 0,
-        backgroundColor: '#A855F7',
-        borderBottomLeftRadius: 60,
-    },
-    donutHole: {
-        position: 'absolute',
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        backgroundColor: Colors.white,
-        top: 25,
-        left: 25,
-    },
     legend: {
-        flex: 1,
         gap: 12,
     },
     legendItem: {
@@ -309,6 +338,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: Colors.text.primary,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: Colors.text.secondary,
+        textAlign: 'center',
+        paddingVertical: 20,
     },
     barChartContainer: {
         flexDirection: 'row',

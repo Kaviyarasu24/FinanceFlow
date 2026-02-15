@@ -9,19 +9,25 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignInScreen() {
     const router = useRouter();
+    const { signIn } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
+    const [authError, setAuthError] = useState('');
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,7 +52,7 @@ export default function SignInScreen() {
         }
     };
 
-    const handleSignIn = () => {
+    const handleSignIn = async () => {
         if (!email || !password) {
             if (!email) setEmailError('Email is required');
             if (!password) setPasswordError('Password is required');
@@ -57,10 +63,23 @@ export default function SignInScreen() {
             return;
         }
 
-        // TODO: Implement sign-in logic
-        console.log('Sign in:', { email, password, rememberMe });
-        // Navigate to home screen
-        router.replace('/(home)');
+        setAuthError('');
+        setLoading(true);
+        const { error } = await signIn(email, password);
+        setLoading(false);
+
+        if (error) {
+            // Display error message inline
+            if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
+                setAuthError('Invalid email or password. Please try again.');
+            } else if (error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('no account')) {
+                setAuthError('No account found with this email.');
+            } else {
+                setAuthError(error.message || 'Failed to sign in. Please try again.');
+            }
+        } else {
+            router.replace('/(home)');
+        }
     };
 
     const isFormValid = email && password && !emailError && !passwordError;
@@ -151,13 +170,25 @@ export default function SignInScreen() {
                         </Link>
                     </View>
 
+                    {/* Auth Error Message */}
+                    {authError ? (
+                        <View style={styles.authErrorContainer}>
+                            <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                            <Text style={styles.authErrorText}>{authError}</Text>
+                        </View>
+                    ) : null}
+
                     {/* Sign In Button */}
                     <TouchableOpacity
-                        style={[styles.signInButton, !isFormValid && styles.signInButtonDisabled]}
+                        style={[styles.signInButton, (!isFormValid || loading) && styles.signInButtonDisabled]}
                         onPress={handleSignIn}
-                        disabled={!isFormValid}
+                        disabled={!isFormValid || loading}
                     >
-                        <Text style={styles.signInButtonText}>Sign In</Text>
+                        {loading ? (
+                            <ActivityIndicator color={Colors.white} />
+                        ) : (
+                            <Text style={styles.signInButtonText}>Sign In</Text>
+                        )}
                     </TouchableOpacity>
 
                     {/* Sign Up Link */}
@@ -361,18 +392,33 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.text.primary,
     },
+    authErrorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEE2E2',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        gap: 8,
+    },
+    authErrorText: {
+        flex: 1,
+        fontSize: 13,
+        color: '#EF4444',
+        fontWeight: '500',
+    },
     signUpContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
     },
     signUpText: {
-        fontSize: 14,
+        fontSize: 15,
         color: Colors.text.secondary,
     },
     signUpLink: {
-        fontSize: 14,
-        color: Colors.primary,
+        fontSize: 15,
         fontWeight: '700',
+        color: Colors.primary,
     },
 });

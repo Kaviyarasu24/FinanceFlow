@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,26 +6,111 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Switch,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export default function PersonalInfoScreen() {
     const router = useRouter();
-    const [fullName, setFullName] = useState('John Doe');
-    const [email, setEmail] = useState('john.doe@email.com');
+    const { user } = useAuth();
+    const [fullName, setFullName] = useState('');
+    const [email, setEmail] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
-    const handleSave = () => {
-        // TODO: Implement save logic
-        console.log('Saving personal info:', { fullName, email, currentPassword, newPassword });
-        router.back();
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        if (!user) return;
+
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (!error && data) {
+            setFullName(data.full_name || '');
+            setEmail(data.email || user.email || '');
+        }
+        setLoading(false);
     };
+
+    const handleSave = async () => {
+        if (!user) {
+            console.log('No user found');
+            Alert.alert('Error', 'User not authenticated');
+            return;
+        }
+
+        console.log('Starting save...', { fullName, newPassword: !!newPassword });
+        setSaving(true);
+
+        try {
+            // Update profile
+            console.log('Updating profile for user:', user.id);
+            const { data, error: profileError } = await supabase
+                .from('profiles')
+                .update({ full_name: fullName })
+                .eq('id', user.id)
+                .select();
+
+            console.log('Profile update result:', { data, error: profileError });
+
+            if (profileError) {
+                console.error('Profile update error:', profileError);
+                Alert.alert('Error', `Failed to update profile: ${profileError.message}`);
+                setSaving(false);
+                return;
+            }
+
+            // Update password if provided
+            if (newPassword) {
+                console.log('Updating password...');
+                const { error: passwordError } = await supabase.auth.updateUser({
+                    password: newPassword,
+                });
+
+                if (passwordError) {
+                    console.error('Password update error:', passwordError);
+                    Alert.alert('Error', `Failed to update password: ${passwordError.message}`);
+                    setSaving(false);
+                    return;
+                }
+                console.log('Password updated successfully');
+            }
+
+            setSaving(false);
+            console.log('Save completed successfully');
+
+            // Navigate back immediately - profile screen will auto-refresh
+            router.back();
+        } catch (error) {
+            console.error('Unexpected error:', error);
+            Alert.alert('Error', 'An unexpected error occurred');
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -59,18 +144,20 @@ export default function PersonalInfoScreen() {
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Email</Text>
-                        <View style={styles.inputContainer}>
+                        <View style={[styles.inputContainer, styles.inputContainerDisabled]}>
                             <Ionicons name="mail-outline" size={20} color={Colors.text.secondary} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, styles.inputDisabled]}
                                 value={email}
-                                onChangeText={setEmail}
                                 placeholder="Enter your email"
                                 placeholderTextColor={Colors.text.light}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                editable={false}
                             />
+                            <Ionicons name="lock-closed" size={16} color={Colors.text.light} />
                         </View>
+                        <Text style={styles.helperText}>Email cannot be changed</Text>
                     </View>
                 </View>
 
@@ -78,28 +165,6 @@ export default function PersonalInfoScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>CHANGE PASSWORD</Text>
                     <Text style={styles.sectionSubtitle}>Leave blank to keep current password</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Current Password</Text>
-                        <View style={styles.inputContainer}>
-                            <Ionicons name="lock-closed-outline" size={20} color={Colors.text.secondary} />
-                            <TextInput
-                                style={styles.input}
-                                value={currentPassword}
-                                onChangeText={setCurrentPassword}
-                                placeholder="Enter current password"
-                                placeholderTextColor={Colors.text.light}
-                                secureTextEntry={!showCurrentPassword}
-                            />
-                            <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
-                                <Ionicons
-                                    name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'}
-                                    size={20}
-                                    color={Colors.text.secondary}
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>New Password</Text>
@@ -125,8 +190,16 @@ export default function PersonalInfoScreen() {
                 </View>
 
                 {/* Save Button */}
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                <TouchableOpacity
+                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                    onPress={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? (
+                        <ActivityIndicator color={Colors.white} />
+                    ) : (
+                        <Text style={styles.saveButtonText}>Save Changes</Text>
+                    )}
                 </TouchableOpacity>
 
                 <View style={styles.bottomSpacing} />
@@ -139,6 +212,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background.primary,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',
@@ -206,6 +283,18 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: Colors.text.primary,
     },
+    inputContainerDisabled: {
+        backgroundColor: Colors.background.primary,
+        opacity: 0.7,
+    },
+    inputDisabled: {
+        color: Colors.text.secondary,
+    },
+    helperText: {
+        fontSize: 12,
+        color: Colors.text.light,
+        marginTop: 4,
+    },
     saveButton: {
         backgroundColor: Colors.primary,
         borderRadius: 12,
@@ -219,6 +308,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 4,
+    },
+    saveButtonDisabled: {
+        opacity: 0.6,
     },
     saveButtonText: {
         fontSize: 16,

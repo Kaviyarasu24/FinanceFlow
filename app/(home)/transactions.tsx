@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,127 +6,70 @@ import {
     ScrollView,
     TextInput,
     TouchableOpacity,
+    ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useCategories } from '@/hooks/useCategories';
+import { useCurrency } from '@/hooks/useCurrency';
 
 type TransactionType = 'all' | 'income' | 'expense';
 
-interface Transaction {
-    id: string;
-    title: string;
-    date: string;
-    amount: number;
-    category: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    iconBg: string;
-    iconColor: string;
-    type: 'income' | 'expense';
-}
-
-const transactions: Transaction[] = [
-    {
-        id: '1',
-        title: 'Grocery Store',
-        date: 'Today, 2:30 PM',
-        amount: -89.50,
-        category: 'Food & Drinks',
-        icon: 'cart-outline',
-        iconBg: '#E0F2FE',
-        iconColor: '#0EA5E9',
-        type: 'expense',
-    },
-    {
-        id: '2',
-        title: 'Salary Deposit',
-        date: 'Today, 9:00 AM',
-        amount: 4500.00,
-        category: 'Income',
-        icon: 'wallet-outline',
-        iconBg: '#DCFCE7',
-        iconColor: '#22C55E',
-        type: 'income',
-    },
-    {
-        id: '3',
-        title: 'Netflix Subscription',
-        date: 'Yesterday, 11:00 PM',
-        amount: -15.99,
-        category: 'Entertainment',
-        icon: 'tv-outline',
-        iconBg: '#F3E8FF',
-        iconColor: '#A855F7',
-        type: 'expense',
-    },
-    {
-        id: '4',
-        title: 'Uber Ride',
-        date: 'Yesterday, 6:45 PM',
-        amount: -24.50,
-        category: 'Transport',
-        icon: 'car-outline',
-        iconBg: '#FEE2E2',
-        iconColor: '#EF4444',
-        type: 'expense',
-    },
-    {
-        id: '5',
-        title: 'Freelance Payment',
-        date: 'Jan 15, 3:00 PM',
-        amount: 850.00,
-        category: 'Income',
-        icon: 'briefcase-outline',
-        iconBg: '#DCFCE7',
-        iconColor: '#22C55E',
-        type: 'income',
-    },
-    {
-        id: '6',
-        title: 'Electric Bill',
-        date: 'Jan 17, 10:00 AM',
-        amount: -125.00,
-        category: 'Utilities',
-        icon: 'flash-outline',
-        iconBg: '#FEF3C7',
-        iconColor: '#F59E0B',
-        type: 'expense',
-    },
-    {
-        id: '7',
-        title: 'Coffee Shop',
-        date: 'Jan 17, 8:30 AM',
-        amount: -6.50,
-        category: 'Food & Drinks',
-        icon: 'cafe-outline',
-        iconBg: '#E0F2FE',
-        iconColor: '#0EA5E9',
-        type: 'expense',
-    },
-    {
-        id: '8',
-        title: 'Gym Membership',
-        date: 'Jan 16, 12:00 PM',
-        amount: -50.00,
-        category: 'Health',
-        icon: 'fitness-outline',
-        iconBg: '#DBEAFE',
-        iconColor: '#3B82F6',
-        type: 'expense',
-    },
-];
-
 export default function TransactionsScreen() {
+    const { transactions, loading, fetchTransactions } = useTransactions();
+    const { categories } = useCategories();
+    const { formatAmount } = useCurrency();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<TransactionType>('all');
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchTransactions();
+        setRefreshing(false);
+    };
+
+    const getCategoryInfo = (categoryId: string | null) => {
+        if (!categoryId) return { name: 'Uncategorized', icon: 'help-outline', color: '#6B7280' };
+        const category = categories.find(c => c.id === categoryId);
+        return category || { name: 'Unknown', icon: 'help-outline', color: '#6B7280' };
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) {
+            return `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return `Yesterday, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        }
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
 
     const filteredTransactions = transactions.filter((transaction) => {
-        const matchesSearch = transaction.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const category = getCategoryInfo(transaction.category_id);
+        const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (transaction.notes?.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesFilter =
             activeFilter === 'all' ||
             (activeFilter === 'income' && transaction.type === 'income') ||
             (activeFilter === 'expense' && transaction.type === 'expense');
         return matchesSearch && matchesFilter;
     });
+
+    if (loading && transactions.length === 0) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading transactions...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -147,9 +90,6 @@ export default function TransactionsScreen() {
                         onChangeText={setSearchQuery}
                     />
                 </View>
-                <TouchableOpacity style={styles.filterButton}>
-                    <Ionicons name="options-outline" size={20} color={Colors.text.primary} />
-                </TouchableOpacity>
             </View>
 
             {/* Filter Tabs */}
@@ -185,50 +125,49 @@ export default function TransactionsScreen() {
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+                }
             >
-                {filteredTransactions.map((transaction) => (
-                    <TouchableOpacity key={transaction.id} style={styles.transactionItem}>
-                        <View style={styles.transactionLeft}>
-                            <View style={[styles.transactionIcon, { backgroundColor: transaction.iconBg }]}>
-                                <Ionicons name={transaction.icon} size={24} color={transaction.iconColor} />
+                {filteredTransactions.map((transaction) => {
+                    const category = getCategoryInfo(transaction.category_id);
+                    return (
+                        <TouchableOpacity key={transaction.id} style={styles.transactionItem}>
+                            <View style={styles.transactionLeft}>
+                                <View style={[styles.transactionIcon, { backgroundColor: `${category.color}20` }]}>
+                                    <Ionicons name={category.icon as any} size={24} color={category.color} />
+                                </View>
+                                <View style={styles.transactionInfo}>
+                                    <Text style={styles.transactionTitle}>{category.name}</Text>
+                                    <Text style={styles.transactionDate}>{formatDate(transaction.date)}</Text>
+                                    {transaction.notes && (
+                                        <Text style={styles.transactionNotes} numberOfLines={1}>
+                                            {transaction.notes}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
-                            <View style={styles.transactionInfo}>
-                                <Text style={styles.transactionTitle}>{transaction.title}</Text>
-                                <Text style={styles.transactionDate}>{transaction.date}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.transactionRight}>
-                            <Text
-                                style={[
-                                    styles.transactionAmount,
-                                    transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
-                                ]}
-                            >
-                                {transaction.type === 'income' ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
-                            </Text>
-                            <View
-                                style={[
-                                    styles.categoryBadge,
-                                    transaction.type === 'income' ? styles.incomeBadge : styles.expenseBadge,
-                                ]}
-                            >
+                            <View style={styles.transactionRight}>
                                 <Text
                                     style={[
-                                        styles.categoryBadgeText,
-                                        transaction.type === 'income' ? styles.incomeBadgeText : styles.expenseBadgeText,
+                                        styles.transactionAmount,
+                                        transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
                                     ]}
                                 >
-                                    {transaction.category}
+                                    {transaction.type === 'income' ? '+' : '-'}{formatAmount(transaction.amount)}
                                 </Text>
                             </View>
-                        </View>
-                    </TouchableOpacity>
-                ))}
+                        </TouchableOpacity>
+                    );
+                })}
 
                 {filteredTransactions.length === 0 && (
                     <View style={styles.emptyState}>
                         <Ionicons name="receipt-outline" size={64} color={Colors.text.light} />
                         <Text style={styles.emptyStateText}>No transactions found</Text>
+                        <Text style={styles.emptyStateSubtext}>
+                            {searchQuery ? 'Try a different search' : 'Add your first transaction'}
+                        </Text>
                     </View>
                 )}
 
@@ -243,6 +182,15 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background.primary,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: Colors.text.secondary,
     },
     header: {
         backgroundColor: Colors.white,
@@ -276,14 +224,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         color: Colors.text.primary,
-    },
-    filterButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: Colors.background.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     filterTabs: {
         flexDirection: 'row',
@@ -357,9 +297,13 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: Colors.text.secondary,
     },
+    transactionNotes: {
+        fontSize: 12,
+        color: Colors.text.light,
+        marginTop: 2,
+    },
     transactionRight: {
         alignItems: 'flex-end',
-        gap: 6,
     },
     transactionAmount: {
         fontSize: 16,
@@ -371,27 +315,6 @@ const styles = StyleSheet.create({
     expenseAmount: {
         color: Colors.text.primary,
     },
-    categoryBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    incomeBadge: {
-        backgroundColor: '#DCFCE7',
-    },
-    expenseBadge: {
-        backgroundColor: Colors.background.primary,
-    },
-    categoryBadgeText: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    incomeBadgeText: {
-        color: '#22C55E',
-    },
-    expenseBadgeText: {
-        color: Colors.text.secondary,
-    },
     emptyState: {
         alignItems: 'center',
         justifyContent: 'center',
@@ -399,8 +322,14 @@ const styles = StyleSheet.create({
     },
     emptyStateText: {
         fontSize: 16,
+        fontWeight: '600',
         color: Colors.text.secondary,
         marginTop: 16,
+    },
+    emptyStateSubtext: {
+        fontSize: 14,
+        color: Colors.text.light,
+        marginTop: 8,
     },
     bottomSpacing: {
         height: 100,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,22 +7,76 @@ import {
     TouchableOpacity,
     Switch,
     Image,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
     const router = useRouter();
+    const { signOut, user } = useAuth();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [darkModeEnabled, setDarkModeEnabled] = useState(false);
     const [biometricEnabled, setBiometricEnabled] = useState(true);
+    const [profile, setProfile] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    // Refresh profile when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchProfile();
+        }, [user])
+    );
+
+    const fetchProfile = async () => {
+        if (!user) return;
+
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (!error && data) {
+            setProfile(data);
+        }
+        setLoading(false);
+    };
 
     const handleLogout = () => {
-        // TODO: Implement logout logic
-        console.log('Logging out...');
-        router.replace('/sign-in');
+        Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await signOut();
+                        router.replace('/sign-in');
+                    },
+                },
+            ]
+        );
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -37,8 +91,8 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                     <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>John Doe</Text>
-                        <Text style={styles.profileEmail}>john.doe@email.com</Text>
+                        <Text style={styles.profileName}>{profile?.full_name || user?.email?.split('@')[0] || 'User'}</Text>
+                        <Text style={styles.profileEmail}>{profile?.email || user?.email || 'No email'}</Text>
                     </View>
                     <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(home)/personal-info')}>
                         <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -171,6 +225,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background.primary,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         backgroundColor: Colors.primary,
