@@ -1,25 +1,27 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    Dimensions,
-    ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTransactions } from '@/hooks/useTransactions';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useTransactions } from '@/hooks/useTransactions';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const { user } = useAuth();
-    const { transactions, loading } = useTransactions();
+    const { transactions, loading, fetchTransactions } = useTransactions();
     const { formatAmount } = useCurrency();
     const [profile, setProfile] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
@@ -28,6 +30,13 @@ export default function HomeScreen() {
         fetchProfile();
         fetchCategories();
     }, [user]);
+
+    // Refresh transactions when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions();
+        }, [])
+    );
 
     const fetchProfile = async () => {
         if (!user) return;
@@ -65,16 +74,34 @@ export default function HomeScreen() {
             .filter(t => t.type === 'income')
             .reduce((sum, t) => sum + t.amount, 0);
 
-        // Calculate weekly spending for chart
-        const weeklyData = Array(7).fill(0);
-        const today = now.getDay(); // 0 = Sunday, 6 = Saturday
+        // Calculate weekly spending for chart (Mon-Sun of current week)
+        const weeklyData = Array(7).fill(0); // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+        
+        // Get the start of the current week (Monday)
+        const currentDayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Days since last Monday
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - daysFromMonday);
+        weekStart.setHours(0, 0, 0, 0);
+        
+        // Get the end of the current week (Sunday)
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
 
         transactions.forEach(t => {
             if (t.type === 'expense') {
                 const transactionDate = new Date(t.date);
-                const daysDiff = Math.floor((now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24));
-                if (daysDiff >= 0 && daysDiff < 7) {
-                    const dayIndex = (7 - daysDiff) % 7;
+                transactionDate.setHours(0, 0, 0, 0);
+                
+                // Check if transaction is within current week
+                if (transactionDate >= weekStart && transactionDate <= weekEnd) {
+                    // Get the day of week for the transaction (0=Sun, 1=Mon, ..., 6=Sat)
+                    const transactionDayOfWeek = transactionDate.getDay();
+                    // Convert to our array index (0=Mon, 1=Tue, ..., 6=Sun)
+                    const dayIndex = transactionDayOfWeek === 0 ? 6 : transactionDayOfWeek - 1;
                     weeklyData[dayIndex] += t.amount;
                 }
             }
@@ -109,6 +136,28 @@ export default function HomeScreen() {
             .sort((a, b) => b.total - a.total)
             .slice(0, 3);
 
+        // Calculate last 6 months trend
+        const trendDate = new Date();
+        const trendMonth = trendDate.getMonth();
+        const trendYear = trendDate.getFullYear();
+        const monthlyTrend = [];
+
+        for (let i = 5; i >= 0; i--) {
+            const targetDate = new Date(trendYear, trendMonth - i, 1);
+            const monthTransactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return t.type === 'expense' &&
+                    tDate.getMonth() === targetDate.getMonth() &&
+                    tDate.getFullYear() === targetDate.getFullYear();
+            });
+
+            const monthTotal = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
+            monthlyTrend.push({
+                month: targetDate.toLocaleDateString('en-US', { month: 'short' }),
+                total: monthTotal
+            });
+        }
+
         return {
             totalSpent,
             totalIncome,
@@ -116,6 +165,7 @@ export default function HomeScreen() {
             weeklyData,
             weekTotal,
             topCategories,
+            monthlyTrend,
         };
     }, [transactions, categories]);
 
@@ -204,13 +254,16 @@ export default function HomeScreen() {
                 <View style={styles.chartCard}>
                     <View style={styles.chartHeader}>
                         <Text style={styles.chartTitle}>This Week</Text>
-                        <Text style={styles.chartTotal}>${stats.weekTotal.toFixed(2)} total</Text>
+                        <Text style={styles.chartTotal}>{formatAmount(stats.weekTotal)} total</Text>
                     </View>
                     <View style={styles.barChart}>
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
                             const maxHeight = Math.max(...stats.weeklyData, 1);
                             const height = (stats.weeklyData[index] / maxHeight) * 100;
-                            const isToday = index === new Date().getDay();
+                            // Calculate current day index (0=Mon, 1=Tue, ..., 6=Sun)
+                            const todayDayOfWeek = new Date().getDay();
+                            const todayIndex = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+                            const isToday = index === todayIndex;
                             return (
                                 <View key={day} style={styles.barContainer}>
                                     <View style={styles.barWrapper}>
@@ -224,7 +277,8 @@ export default function HomeScreen() {
                                             ]}
                                         />
                                     </View>
-                                    <Text style={styles.barLabel}>{day}</Text>
+                                    <Text style={[styles.barLabel, isToday && styles.barLabelToday]}>{day}</Text>
+                                    {isToday && <View style={styles.todayIndicator} />}
                                 </View>
                             );
                         })}
@@ -241,14 +295,58 @@ export default function HomeScreen() {
                         </View>
                     </View>
                     <View style={styles.lineChartContainer}>
-                        {/* Simplified line chart representation */}
+                        {/* Smooth line chart */}
                         <View style={styles.lineChart}>
-                            <Text style={styles.lineChartPlaceholder}>📈 Spending trend visualization</Text>
+                            {(() => {
+                                const chartWidth = width - 80;
+                                const chartHeight = 100;
+                                const maxValue = Math.max(...stats.monthlyTrend.map(m => m.total), 1);
+                                const points = stats.monthlyTrend.map((data, index) => {
+                                    const x = (index / (stats.monthlyTrend.length - 1)) * chartWidth;
+                                    const y = chartHeight - ((data.total / maxValue) * chartHeight * 0.8);
+                                    return { x, y };
+                                });
+
+                                // Create smooth curve path using quadratic bezier curves
+                                let pathData = `M ${points[0].x} ${points[0].y}`;
+                                for (let i = 0; i < points.length - 1; i++) {
+                                    const current = points[i];
+                                    const next = points[i + 1];
+                                    const controlX = (current.x + next.x) / 2;
+                                    pathData += ` Q ${controlX} ${current.y}, ${next.x} ${next.y}`;
+                                }
+
+                                // Create area fill path
+                                let areaPath = pathData + ` L ${points[points.length - 1].x} ${chartHeight} L ${points[0].x} ${chartHeight} Z`;
+
+                                return (
+                                    <Svg width={chartWidth} height={chartHeight} style={{ marginHorizontal: 20 }}>
+                                        <Defs>
+                                            <LinearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <Stop offset="0" stopColor="#10B981" stopOpacity="0.3" />
+                                                <Stop offset="1" stopColor="#10B981" stopOpacity="0.05" />
+                                            </LinearGradient>
+                                        </Defs>
+                                        <Path
+                                            d={areaPath}
+                                            fill="url(#lineGradient)"
+                                        />
+                                        <Path
+                                            d={pathData}
+                                            stroke="#10B981"
+                                            strokeWidth="3"
+                                            fill="none"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </Svg>
+                                );
+                            })()}
                         </View>
                         <View style={styles.monthLabels}>
-                            {['Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month) => (
-                                <Text key={month} style={styles.monthLabel}>
-                                    {month}
+                            {stats.monthlyTrend.map((data, index) => (
+                                <Text key={index} style={styles.monthLabel}>
+                                    {data.month}
                                 </Text>
                             ))}
                         </View>
@@ -471,6 +569,18 @@ const styles = StyleSheet.create({
         color: Colors.text.secondary,
         marginTop: 8,
     },
+    barLabelToday: {
+        color: Colors.primary,
+        fontWeight: '600',
+    },
+    todayIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: Colors.primary,
+        marginTop: 4,
+        alignSelf: 'center',
+    },
     legendContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -493,9 +603,10 @@ const styles = StyleSheet.create({
         height: 120,
         backgroundColor: '#F0FDF4',
         borderRadius: 12,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: 12,
+        paddingVertical: 10,
     },
     lineChartPlaceholder: {
         fontSize: 14,

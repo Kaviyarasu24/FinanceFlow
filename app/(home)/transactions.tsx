@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TextInput,
-    TouchableOpacity,
-    ActivityIndicator,
-    RefreshControl,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
-import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useTransactions } from '@/hooks/useTransactions';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 type TransactionType = 'all' | 'income' | 'expense';
 
@@ -24,6 +25,13 @@ export default function TransactionsScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<TransactionType>('all');
     const [refreshing, setRefreshing] = useState(false);
+
+    // Refresh transactions when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions();
+        }, [])
+    );
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -37,30 +45,38 @@ export default function TransactionsScreen() {
         return category || { name: 'Unknown', icon: 'help-outline', color: '#6B7280' };
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string, createdAt?: string) => {
         const date = new Date(dateString);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
 
+        // Use created_at for time display if available
+        const timeSource = createdAt ? new Date(createdAt) : date;
+
         if (date.toDateString() === today.toDateString()) {
-            return `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+            return `Today, ${timeSource.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
         } else if (date.toDateString() === yesterday.toDateString()) {
-            return `Yesterday, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+            return `Yesterday, ${timeSource.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
         }
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    const filteredTransactions = transactions.filter((transaction) => {
-        const category = getCategoryInfo(transaction.category_id);
-        const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (transaction.notes?.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesFilter =
-            activeFilter === 'all' ||
-            (activeFilter === 'income' && transaction.type === 'income') ||
-            (activeFilter === 'expense' && transaction.type === 'expense');
-        return matchesSearch && matchesFilter;
-    });
+    const filteredTransactions = transactions
+        .filter((transaction) => {
+            const category = getCategoryInfo(transaction.category_id);
+            const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (transaction.notes?.toLowerCase().includes(searchQuery.toLowerCase()));
+            const matchesFilter =
+                activeFilter === 'all' ||
+                (activeFilter === 'income' && transaction.type === 'income') ||
+                (activeFilter === 'expense' && transaction.type === 'expense');
+            return matchesSearch && matchesFilter;
+        })
+        .sort((a, b) => {
+            // Sort by created_at timestamp descending (newest first)
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
 
     if (loading && transactions.length === 0) {
         return (
@@ -139,7 +155,7 @@ export default function TransactionsScreen() {
                                 </View>
                                 <View style={styles.transactionInfo}>
                                     <Text style={styles.transactionTitle}>{category.name}</Text>
-                                    <Text style={styles.transactionDate}>{formatDate(transaction.date)}</Text>
+                                    <Text style={styles.transactionDate}>{formatDate(transaction.date, transaction.created_at)}</Text>
                                     {transaction.notes && (
                                         <Text style={styles.transactionNotes} numberOfLines={1}>
                                             {transaction.notes}

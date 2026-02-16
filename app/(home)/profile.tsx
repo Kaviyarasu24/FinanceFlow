@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    Switch,
-    Image,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 export default function ProfileScreen() {
     const router = useRouter();
@@ -62,8 +61,15 @@ export default function ProfileScreen() {
                     text: 'Logout',
                     style: 'destructive',
                     onPress: async () => {
-                        await signOut();
-                        router.replace('/sign-in');
+                        try {
+                            await signOut();
+                            // Use a slight delay to ensure auth state is updated
+                            setTimeout(() => {
+                                router.replace('/sign-in');
+                            }, 100);
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to logout. Please try again.');
+                        }
                     },
                 },
             ]

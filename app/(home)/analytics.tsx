@@ -1,28 +1,116 @@
-import React, { useMemo } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    Dimensions,
-    ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useTransactions } from '@/hooks/useTransactions';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
+// Donut Chart Component
+const DonutChart = ({ data, colors }: { data: any[], colors: string[] }) => {
+    const size = 140;
+    const strokeWidth = 28;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const centerX = size / 2;
+    const centerY = size / 2;
+
+    let currentAngle = -90; // Start from top
+
+    return (
+        <Svg width={size} height={size}>
+            <G rotation={0} origin={`${centerX}, ${centerY}`}>
+                {data.map((item, index) => {
+                    const angle = (item.percentage / 100) * 360;
+                    const startAngle = currentAngle;
+                    currentAngle += angle;
+
+                    // Calculate the stroke dash array for the arc
+                    const arcLength = (angle / 360) * circumference;
+                    const strokeDasharray = `${arcLength} ${circumference}`;
+                    
+                    // Calculate rotation for this segment
+                    const rotationAngle = startAngle + 90;
+
+                    return (
+                        <Circle
+                            key={item.id}
+                            cx={centerX}
+                            cy={centerY}
+                            r={radius}
+                            stroke={colors[index]}
+                            strokeWidth={strokeWidth}
+                            fill="transparent"
+                            strokeDasharray={strokeDasharray}
+                            strokeDashoffset={0}
+                            rotation={rotationAngle}
+                            origin={`${centerX}, ${centerY}`}
+                            strokeLinecap="round"
+                        />
+                    );
+                })}
+            </G>
+        </Svg>
+    );
+};
+
 export default function AnalyticsScreen() {
-    const { transactions, loading } = useTransactions();
+    const { transactions, loading, fetchTransactions } = useTransactions();
     const { formatAmount, getCurrencySymbol } = useCurrency();
+    const { categories } = useCategories();
+
+    // State for selected month/year
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
+    // Refresh transactions when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions();
+        }, [])
+    );
+
+    // Navigate to previous month
+    const goToPreviousMonth = () => {
+        setSelectedDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(newDate.getMonth() - 1);
+            return newDate;
+        });
+    };
+
+    // Navigate to next month
+    const goToNextMonth = () => {
+        setSelectedDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(newDate.getMonth() + 1);
+            return newDate;
+        });
+    };
+
+    // Check if we can go to next month (don't go beyond current month)
+    const canGoNext = () => {
+        const now = new Date();
+        const currentYearMonth = now.getFullYear() * 12 + now.getMonth();
+        const selectedYearMonth = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
+        return selectedYearMonth < currentYearMonth;
+    };
 
     // Calculate analytics data
     const analytics = useMemo(() => {
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+        const currentMonth = selectedDate.getMonth();
+        const currentYear = selectedDate.getFullYear();
 
         // Current month transactions
         const currentMonthTrans = transactions.filter(t => {
@@ -80,13 +168,18 @@ export default function AnalyticsScreen() {
             });
 
         const categoryBreakdown = Object.entries(categoryTotals)
-            .map(([id, amount]: [string, any]) => ({
-                id,
-                amount,
-                percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-            }))
+            .map(([id, amount]: [string, any]) => {
+                const category = categories.find(c => c.id === id);
+                return {
+                    id,
+                    name: category?.name || 'Unknown',
+                    icon: category?.icon || 'help-circle-outline',
+                    amount,
+                    percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+                };
+            })
             .sort((a, b) => b.amount - a.amount)
-            .slice(0, 4);
+            .slice(0, 5);
 
         return {
             income,
@@ -96,11 +189,10 @@ export default function AnalyticsScreen() {
             monthlyData,
             categoryBreakdown,
         };
-    }, [transactions]);
+    }, [transactions, categories, selectedDate]);
 
     const getMonthYear = () => {
-        const now = new Date();
-        return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     };
 
     if (loading) {
@@ -113,16 +205,34 @@ export default function AnalyticsScreen() {
 
     const maxValue = Math.max(...analytics.monthlyData.map(d => Math.max(d.income, d.expense)), 1);
 
-    const categoryColors = ['#F97316', '#3B82F6', '#EC4899', '#A855F7'];
-    const categoryNames = ['Food', 'Transport', 'Shopping', 'Other'];
+    const categoryColors = ['#F97316', '#3B82F6', '#EC4899', '#A855F7', '#22C55E'];
 
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <View>
+                <View style={styles.headerLeft}>
                     <Text style={styles.headerTitle}>Analytics</Text>
-                    <Text style={styles.headerSubtitle}>{getMonthYear()}</Text>
+                    <View style={styles.dateNavigator}>
+                        <TouchableOpacity 
+                            onPress={goToPreviousMonth}
+                            style={styles.navButton}
+                        >
+                            <Ionicons name="chevron-back" size={20} color={Colors.text.secondary} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerSubtitle}>{getMonthYear()}</Text>
+                        <TouchableOpacity 
+                            onPress={goToNextMonth}
+                            style={[styles.navButton, !canGoNext() && styles.navButtonDisabled]}
+                            disabled={!canGoNext()}
+                        >
+                            <Ionicons 
+                                name="chevron-forward" 
+                                size={20} 
+                                color={canGoNext() ? Colors.text.secondary : Colors.text.light} 
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
 
@@ -154,17 +264,27 @@ export default function AnalyticsScreen() {
 
                 {/* Spending by Category */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Top Spending Categories</Text>
+                    <Text style={styles.cardTitle}>Spending by Category</Text>
 
                     {analytics.categoryBreakdown.length > 0 ? (
-                        <View style={styles.legend}>
-                            {analytics.categoryBreakdown.map((cat, index) => (
-                                <View key={cat.id} style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: categoryColors[index] }]} />
-                                    <Text style={styles.legendText}>{categoryNames[index] || 'Category'}</Text>
-                                    <Text style={styles.legendPercent}>{cat.percentage.toFixed(1)}%</Text>
-                                </View>
-                            ))}
+                        <View style={styles.donutContainer}>
+                            {/* Donut Chart */}
+                            <View style={styles.donutChartWrapper}>
+                                <DonutChart data={analytics.categoryBreakdown} colors={categoryColors} />
+                            </View>
+
+                            {/* Category Legend */}
+                            <View style={styles.categoryLegend}>
+                                {analytics.categoryBreakdown.map((cat, index) => (
+                                    <View key={cat.id} style={styles.categoryLegendItem}>
+                                        <View style={styles.categoryLegendLeft}>
+                                            <View style={[styles.legendDot, { backgroundColor: categoryColors[index] }]} />
+                                            <Text style={styles.categoryLegendText}>{cat.name}</Text>
+                                        </View>
+                                        <Text style={styles.categoryLegendPercent}>{cat.percentage.toFixed(0)}%</Text>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
                     ) : (
                         <Text style={styles.emptyText}>No expense data for this month</Text>
@@ -173,28 +293,38 @@ export default function AnalyticsScreen() {
 
                 {/* Income vs Expense Chart */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Income vs Expense (Last 6 Months)</Text>
+                    <Text style={styles.cardTitle}>Income vs Expense</Text>
 
                     <View style={styles.barChartContainer}>
                         {/* Y-axis labels */}
                         <View style={styles.yAxis}>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue).toFixed(0)}</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.75).toFixed(0)}</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.5).toFixed(0)}</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.25).toFixed(0)}</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}0</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue / 1000).toFixed(0)}k</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.75 / 1000).toFixed(1)}k</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.5 / 1000).toFixed(1)}k</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.25 / 1000).toFixed(1)}k</Text>
+                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}0k</Text>
                         </View>
 
                         {/* Bar Chart */}
                         <View style={styles.barChart}>
                             {analytics.monthlyData.map((data, index) => {
-                                const incomeHeight = (data.income / maxValue) * 100;
-                                const expenseHeight = (data.expense / maxValue) * 100;
+                                const incomeHeight = data.income > 0 ? Math.max((data.income / maxValue) * 180, 8) : 0;
+                                const expenseHeight = data.expense > 0 ? Math.max((data.expense / maxValue) * 180, 8) : 0;
                                 return (
                                     <View key={index} style={styles.barGroup}>
                                         <View style={styles.barPair}>
-                                            <View style={[styles.bar, styles.incomeBar, { height: `${incomeHeight || 5}%` }]} />
-                                            <View style={[styles.bar, styles.expenseBar, { height: `${expenseHeight || 5}%` }]} />
+                                            {/* Income Bar */}
+                                            {data.income > 0 ? (
+                                                <View style={[styles.bar, styles.incomeBar, { height: incomeHeight }]} />
+                                            ) : (
+                                                <View style={styles.barPlaceholder} />
+                                            )}
+                                            {/* Expense Bar */}
+                                            {data.expense > 0 ? (
+                                                <View style={[styles.bar, styles.expenseBar, { height: expenseHeight }]} />
+                                            ) : (
+                                                <View style={styles.barPlaceholder} />
+                                            )}
                                         </View>
                                         <Text style={styles.barLabel}>{data.month}</Text>
                                     </View>
@@ -210,7 +340,7 @@ export default function AnalyticsScreen() {
                             <Text style={styles.chartLegendText}>Income</Text>
                         </View>
                         <View style={styles.chartLegendItem}>
-                            <View style={[styles.chartLegendDot, { backgroundColor: '#94A3B8' }]} />
+                            <View style={[styles.chartLegendDot, { backgroundColor: '#FBBF24' }]} />
                             <Text style={styles.chartLegendText}>Expense</Text>
                         </View>
                     </View>
@@ -252,11 +382,25 @@ const styles = StyleSheet.create({
         paddingTop: 60,
         paddingBottom: 20,
     },
+    headerLeft: {
+        flex: 1,
+    },
     headerTitle: {
         fontSize: 28,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginBottom: 4,
+        marginBottom: 8,
+    },
+    dateNavigator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    navButton: {
+        padding: 4,
+    },
+    navButtonDisabled: {
+        opacity: 0.3,
     },
     headerSubtitle: {
         fontSize: 14,
@@ -339,6 +483,81 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.text.primary,
     },
+    donutContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 24,
+        justifyContent: 'space-between',
+    },
+    donutChartWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    categoryLegend: {
+        flex: 1,
+        gap: 10,
+    },
+    categoryLegendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    categoryLegendLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    categoryLegendText: {
+        fontSize: 13,
+        color: Colors.text.primary,
+    },
+    categoryLegendPercent: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.text.primary,
+    },
+    categoryBarsContainer: {
+        gap: 16,
+    },
+    categoryBarWrapper: {
+        gap: 8,
+    },
+    categoryBarInfo: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    categoryBarLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flex: 1,
+    },
+    categoryBarName: {
+        fontSize: 14,
+        color: Colors.text.primary,
+        fontWeight: '500',
+    },
+    categoryBarAmount: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.text.primary,
+    },
+    categoryBarTrack: {
+        height: 8,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    categoryBarFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
+    categoryBarPercent: {
+        fontSize: 12,
+        color: Colors.text.secondary,
+        textAlign: 'right',
+    },
     emptyText: {
         fontSize: 14,
         color: Colors.text.secondary,
@@ -367,27 +586,36 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
     },
     barGroup: {
-        flex: 1,
         alignItems: 'center',
         gap: 8,
+        flex: 1,
     },
     barPair: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'flex-end',
-        gap: 2,
-        width: '100%',
+        gap: 4,
+        height: 180,
         justifyContent: 'center',
     },
+    barPlaceholder: {
+        width: 12,
+        height: 0,
+    },
     bar: {
-        width: 8,
-        borderRadius: 4,
+        width: 12,
+        borderRadius: 6,
     },
     incomeBar: {
         backgroundColor: '#22C55E',
     },
     expenseBar: {
-        backgroundColor: '#94A3B8',
+        backgroundColor: '#FBBF24',
+    },
+    emptyBar: {
+        width: 8,
+        height: 4,
+        borderRadius: 4,
+        backgroundColor: '#E2E8F0',
     },
     barLabel: {
         fontSize: 11,

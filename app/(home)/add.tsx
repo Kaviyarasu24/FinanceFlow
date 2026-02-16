@@ -1,21 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCategories } from '@/hooks/useCategories';
+import { useCurrency } from '@/hooks/useCurrency';
+import { useTransactions } from '@/hooks/useTransactions';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
+    ActivityIndicator,
+    Alert,
+    Platform,
     ScrollView,
+    StyleSheet,
+    Text,
     TextInput,
     TouchableOpacity,
-    Platform,
-    Alert,
-    ActivityIndicator,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useCategories } from '@/hooks/useCategories';
-import { useTransactions } from '@/hooks/useTransactions';
-import { useAuth } from '@/contexts/AuthContext';
 
 type TransactionType = 'expense' | 'income';
 
@@ -30,7 +32,8 @@ interface Category {
 export default function AddTransactionScreen() {
     const { user } = useAuth();
     const { categories, loading: categoriesLoading } = useCategories();
-    const { addTransaction } = useTransactions();
+    const { addTransaction, fetchTransactions } = useTransactions();
+    const { getCurrencySymbol } = useCurrency();
 
     const [type, setType] = useState<TransactionType>('expense');
     const [amount, setAmount] = useState('');
@@ -60,9 +63,21 @@ export default function AddTransactionScreen() {
     };
 
     const handleDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(Platform.OS === 'ios');
+        // On Android, close the picker after selection
+        // On iOS, keep it open (it has a Done button)
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+        }
         if (selectedDate) {
             setDate(selectedDate);
+        }
+    };
+
+    const handleAmountChange = (text: string) => {
+        // Only allow numbers and one decimal point (max 2 decimal places)
+        const numericRegex = /^\d*\.?\d{0,2}$/;
+        if (text === '' || numericRegex.test(text)) {
+            setAmount(text);
         }
     };
 
@@ -91,26 +106,21 @@ export default function AddTransactionScreen() {
             date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
             notes: notes || null,
         });
-        setSaving(false);
 
         if (error) {
+            setSaving(false);
             Alert.alert('Error', error);
         } else {
-            Alert.alert(
-                'Success',
-                `${type === 'income' ? 'Income' : 'Expense'} of $${amount} added successfully!`,
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => {
-                            // Reset form
-                            setAmount('');
-                            setNotes('');
-                            setDate(new Date());
-                        },
-                    },
-                ]
-            );
+            // Refresh transactions list to ensure data is up-to-date
+            await fetchTransactions();
+            setSaving(false);
+            
+            // Reset form
+            setAmount('');
+            setNotes('');
+            setDate(new Date());
+            // Navigate back to home page
+            router.push('/(home)');
         }
     };
 
@@ -188,13 +198,13 @@ export default function AddTransactionScreen() {
                 <View style={styles.card}>
                     <Text style={styles.label}>Amount</Text>
                     <View style={styles.amountContainer}>
-                        <Text style={styles.currencySymbol}>$</Text>
+                        <Text style={styles.currencySymbol}>{getCurrencySymbol()}</Text>
                         <TextInput
                             style={styles.amountInput}
                             placeholder="0.00"
                             placeholderTextColor={Colors.text.light}
                             value={amount}
-                            onChangeText={setAmount}
+                            onChangeText={handleAmountChange}
                             keyboardType="decimal-pad"
                         />
                     </View>
@@ -262,19 +272,48 @@ export default function AddTransactionScreen() {
                 {/* Date Picker */}
                 <View style={styles.card}>
                     <Text style={styles.label}>Date</Text>
-                    <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                        <Ionicons name="calendar-outline" size={20} color={Colors.text.secondary} />
-                        <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
-                    </TouchableOpacity>
-
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={date}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleDateChange}
-                            maximumDate={new Date()}
+                    {Platform.OS === 'web' ? (
+                        <input
+                            type="date"
+                            value={date.toISOString().split('T')[0]}
+                            max={new Date().toISOString().split('T')[0]}
+                            onChange={(e) => {
+                                const selectedDate = new Date(e.target.value);
+                                if (!isNaN(selectedDate.getTime())) {
+                                    setDate(selectedDate);
+                                }
+                            }}
+                            style={{
+                                padding: '14px 16px',
+                                borderRadius: 12,
+                                border: '1px solid #E5E7EB',
+                                backgroundColor: '#F9FAFB',
+                                fontSize: 16,
+                                width: '100%',
+                                fontFamily: 'system-ui',
+                                color: '#1F2937',
+                                outline: 'none',
+                                cursor: 'pointer',
+                                boxSizing: 'border-box',
+                            }}
                         />
+                    ) : (
+                        <>
+                            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                                <Ionicons name="calendar-outline" size={20} color={Colors.text.secondary} />
+                                <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
+                            </TouchableOpacity>
+
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={date}
+                                    mode="date"
+                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                    onChange={handleDateChange}
+                                    maximumDate={new Date()}
+                                />
+                            )}
+                        </>
                     )}
                 </View>
 
