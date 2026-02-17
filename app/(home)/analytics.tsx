@@ -192,7 +192,7 @@ export default function AnalyticsScreen() {
     }, [transactions, categories, selectedDate]);
 
     const getMonthYear = () => {
-        return selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     };
 
     if (loading) {
@@ -211,28 +211,30 @@ export default function AnalyticsScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <Text style={styles.headerTitle}>Analytics</Text>
-                    <View style={styles.dateNavigator}>
-                        <TouchableOpacity 
-                            onPress={goToPreviousMonth}
-                            style={styles.navButton}
-                        >
-                            <Ionicons name="chevron-back" size={20} color={Colors.text.secondary} />
-                        </TouchableOpacity>
-                        <Text style={styles.headerSubtitle}>{getMonthYear()}</Text>
-                        <TouchableOpacity 
-                            onPress={goToNextMonth}
-                            style={[styles.navButton, !canGoNext() && styles.navButtonDisabled]}
-                            disabled={!canGoNext()}
-                        >
-                            <Ionicons 
-                                name="chevron-forward" 
-                                size={20} 
-                                color={canGoNext() ? Colors.text.secondary : Colors.text.light} 
-                            />
-                        </TouchableOpacity>
-                    </View>
+                <Text style={styles.headerTitle}>Analytics</Text>
+                <View style={styles.dateNavigator}>
+                    <TouchableOpacity 
+                        onPress={goToPreviousMonth}
+                        style={styles.navButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={24} color="#000000" />
+                    </TouchableOpacity>
+                    <Text style={styles.monthText}>
+                        {getMonthYear()}
+                    </Text>
+                    <TouchableOpacity 
+                        onPress={goToNextMonth}
+                        style={[styles.navButton, !canGoNext() && styles.navButtonDisabled]}
+                        disabled={!canGoNext()}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name="chevron-forward" 
+                            size={24} 
+                            color={canGoNext() ? '#000000' : Colors.text.light} 
+                        />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -379,32 +381,46 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: Colors.white,
         paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
-    },
-    headerLeft: {
-        flex: 1,
+        paddingTop: 50,
+        paddingBottom: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerTitle: {
         fontSize: 28,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginBottom: 8,
+        marginBottom: 16,
     },
     dateNavigator: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        justifyContent: 'space-between',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
     },
     navButton: {
-        padding: 4,
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 22,
+        backgroundColor: Colors.white,
     },
     navButtonDisabled: {
         opacity: 0.3,
     },
-    headerSubtitle: {
-        fontSize: 14,
-        color: Colors.text.secondary,
+    monthText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#000000',
+        textAlign: 'center',
+        flex: 1,
     },
     scrollView: {
         flex: 1,
@@ -676,6 +692,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     bottomSpacing: {
-        height: 100,
+        height: 140,
     },
 });

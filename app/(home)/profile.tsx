@@ -63,10 +63,7 @@ export default function ProfileScreen() {
                     onPress: async () => {
                         try {
                             await signOut();
-                            // Use a slight delay to ensure auth state is updated
-                            setTimeout(() => {
-                                router.replace('/sign-in');
-                            }, 100);
+                            router.replace('/sign-in');
                         } catch (error) {
                             Alert.alert('Error', 'Failed to logout. Please try again.');
                         }
@@ -360,6 +357,6 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     bottomSpacing: {
-        height: 100,
+        height: 140,
     },
 });

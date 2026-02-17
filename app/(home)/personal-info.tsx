@@ -318,6 +318,6 @@ const styles = StyleSheet.create({
         color: Colors.white,
     },
     bottomSpacing: {
-        height: 40,
+        height: 100,
     },
 });

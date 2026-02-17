@@ -686,6 +686,6 @@ const styles = StyleSheet.create({
         paddingTop: 16,
     },
     bottomSpacing: {
-        height: 100,
+        height: 140,
     },
 });

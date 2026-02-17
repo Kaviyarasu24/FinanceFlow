@@ -348,6 +348,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     bottomSpacing: {
-        height: 100,
+        height: 140,
     },
 });

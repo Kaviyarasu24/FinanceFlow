@@ -1,3 +1,4 @@
+import { Dropdown } from '@/components/ui/dropdown';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCategories } from '@/hooks/useCategories';
@@ -41,7 +42,6 @@ export default function AddTransactionScreen() {
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [notes, setNotes] = useState('');
-    const [showCategoryPicker, setShowCategoryPicker] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Set initial category when categories load
@@ -212,61 +212,21 @@ export default function AddTransactionScreen() {
 
                 {/* Category Picker */}
                 <View style={styles.card}>
-                    <Text style={styles.label}>Category</Text>
-                    <TouchableOpacity
-                        style={styles.categoryButton}
-                        onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-                    >
-                        {selectedCategory ? (
-                            <View style={styles.categoryButtonLeft}>
-                                <View
-                                    style={[
-                                        styles.categoryIcon,
-                                        { backgroundColor: `${selectedCategory.color}20` },
-                                    ]}
-                                >
-                                    <Ionicons
-                                        name={selectedCategory.icon as any}
-                                        size={20}
-                                        color={selectedCategory.color}
-                                    />
-                                </View>
-                                <Text style={styles.categoryButtonText}>{selectedCategory.name}</Text>
-                            </View>
-                        ) : (
-                            <Text style={styles.categoryButtonText}>Select a category</Text>
-                        )}
-                        <Ionicons
-                            name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-                            size={20}
-                            color={Colors.text.secondary}
-                        />
-                    </TouchableOpacity>
-
-                    {showCategoryPicker && (
-                        <View style={styles.categoryList}>
-                            {currentCategories.map((category) => (
-                                <TouchableOpacity
-                                    key={category.id}
-                                    style={styles.categoryItem}
-                                    onPress={() => {
-                                        setSelectedCategory(category);
-                                        setShowCategoryPicker(false);
-                                    }}
-                                >
-                                    <View
-                                        style={[styles.categoryIcon, { backgroundColor: `${category.color}20` }]}
-                                    >
-                                        <Ionicons name={category.icon as any} size={20} color={category.color} />
-                                    </View>
-                                    <Text style={styles.categoryItemText}>{category.name}</Text>
-                                    {selectedCategory?.id === category.id && (
-                                        <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                    <Dropdown
+                        label="Category"
+                        placeholder="Select a category"
+                        options={currentCategories.map((cat) => ({
+                            id: cat.id,
+                            label: cat.name,
+                            icon: cat.icon,
+                            color: cat.color,
+                        }))}
+                        selectedValue={selectedCategory?.id || null}
+                        onSelect={(option) => {
+                            const category = currentCategories.find((cat) => cat.id === option.id);
+                            if (category) setSelectedCategory(category);
+                        }}
+                    />
                 </View>
 
                 {/* Date Picker */}
@@ -440,49 +400,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: Colors.text.primary,
     },
-    categoryButton: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: Colors.background.primary,
-        borderRadius: 12,
-        padding: 16,
-    },
-    categoryButtonLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    categoryIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    categoryButtonText: {
-        fontSize: 15,
-        fontWeight: '500',
-        color: Colors.text.primary,
-    },
-    categoryList: {
-        marginTop: 12,
-        gap: 8,
-    },
-    categoryItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.background.primary,
-        borderRadius: 12,
-        padding: 12,
-        gap: 12,
-    },
-    categoryItemText: {
-        flex: 1,
-        fontSize: 15,
-        fontWeight: '500',
-        color: Colors.text.primary,
-    },
     dateButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -535,6 +452,6 @@ const styles = StyleSheet.create({
         color: Colors.text.secondary,
     },
     bottomSpacing: {
-        height: 100,
+        height: 140,
     },
 });

@@ -1,10 +1,27 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
-import { View, StyleSheet } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, Tabs } from 'expo-router';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 export default function HomeLayout() {
+    const { user, loading } = useAuth();
+
+    // Show loading indicator while checking auth state
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
+    // Redirect to sign-in if not authenticated
+    if (!user) {
+        return <Redirect href="/sign-in" />;
+    }
+
     return (
         <Tabs
             screenOptions={{
@@ -86,9 +103,15 @@ export default function HomeLayout() {
 }
 
 const styles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.background.primary,
+    },
     tabBar: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 30,
         left: 20,
         right: 20,
         backgroundColor: Colors.white,

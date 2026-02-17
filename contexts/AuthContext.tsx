@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { Session, User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
     session: Session | null;
@@ -93,6 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signOut = async () => {
         await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
     };
 
     const resetPassword = async (email: string) => {
