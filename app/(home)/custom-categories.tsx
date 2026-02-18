@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.background.primary,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        maxHeight: '85%',
+        height: '85%',
         borderBottomWidth: 0,
         paddingBottom: 8,
     },
@@ -573,6 +573,7 @@ const styles = StyleSheet.create({
     },
     modalScrollContent: {
         paddingBottom: 24,
+        flexGrow: 1,
     },
     section: {
         paddingHorizontal: 16,
