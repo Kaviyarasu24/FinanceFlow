@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeLayout() {
     const { user, loading } = useAuth();
+    const insets = useSafeAreaInsets();
 
     // Show loading indicator while checking auth state
     if (loading) {
@@ -28,7 +30,14 @@ export default function HomeLayout() {
                 headerShown: false,
                 tabBarActiveTintColor: Colors.primary,
                 tabBarInactiveTintColor: Colors.text.light,
-                tabBarStyle: styles.tabBar,
+                tabBarStyle: [
+                    styles.tabBar,
+                    {
+                        bottom: 0,
+                        paddingBottom: insets.bottom,
+                        height: 64 + insets.bottom,
+                    },
+                ],
                 tabBarLabelStyle: styles.tabBarLabel,
             }}
         >
@@ -98,6 +107,12 @@ export default function HomeLayout() {
                     href: null, // Hide from tab bar
                 }}
             />
+            <Tabs.Screen
+                name="custom-categories"
+                options={{
+                    href: null, // Hide from tab bar
+                }}
+            />
         </Tabs>
     );
 }
@@ -111,19 +126,17 @@ const styles = StyleSheet.create({
     },
     tabBar: {
         position: 'absolute',
-        bottom: 30,
-        left: 20,
-        right: 20,
+        left: 0,
+        right: 0,
         backgroundColor: Colors.white,
-        borderRadius: 20,
-        height: 70,
-        paddingBottom: 10,
-        paddingTop: 10,
+        borderRadius: 0,
+        height: 64,
+        paddingTop: 8,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 8,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 6,
         borderTopWidth: 0,
     },
     tabBarLabel: {

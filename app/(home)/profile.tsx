@@ -181,6 +181,16 @@ export default function ProfileScreen() {
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
                     </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(home)/custom-categories')}>
+                        <View style={styles.menuItemLeft}>
+                            <View style={[styles.menuIcon, { backgroundColor: '#F3E8FF' }]}>
+                                <Ionicons name="pricetags-outline" size={20} color="#A855F7" />
+                            </View>
+                            <Text style={styles.menuItemText}>Custom Categories</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Support Section */}

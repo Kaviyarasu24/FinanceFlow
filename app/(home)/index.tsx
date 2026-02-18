@@ -31,11 +31,12 @@ export default function HomeScreen() {
         fetchCategories();
     }, [user]);
 
-    // Refresh transactions when screen comes into focus
+    // Refresh transactions and profile when screen comes into focus
     useFocusEffect(
         useCallback(() => {
             fetchTransactions();
-        }, [])
+            fetchProfile();
+        }, [user])
     );
 
     const fetchProfile = async () => {
@@ -58,38 +59,41 @@ export default function HomeScreen() {
     // Calculate statistics from transactions
     const stats = useMemo(() => {
         const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        const monthlyTransactions = transactions.filter(t => {
-            const date = new Date(t.date);
-            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-        });
-
-        const totalSpent = monthlyTransactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const totalIncome = monthlyTransactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        // Calculate weekly spending for chart (Mon-Sun of current week)
-        const weeklyData = Array(7).fill(0); // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
         
         // Get the start of the current week (Monday)
-        const currentDayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const currentDayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
         const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Days since last Monday
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - daysFromMonday);
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - daysFromMonday);
         weekStart.setHours(0, 0, 0, 0);
         
         // Get the end of the current week (Sunday)
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
+
+        // Format week date range (Mon - Sun)
+        const weekDateRange = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+        // Get weekly transactions
+        const weeklyTransactions = transactions.filter(t => {
+            const date = new Date(t.date);
+            date.setHours(0, 0, 0, 0);
+            return date >= weekStart && date <= weekEnd;
+        });
+
+        const totalSpent = weeklyTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const totalIncome = weeklyTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const remaining = totalIncome - totalSpent;
+
+        // Calculate weekly spending for chart (Mon-Sun of current week)
+        const weeklyData = Array(7).fill(0); // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
 
         transactions.forEach(t => {
             if (t.type === 'expense') {
@@ -111,11 +115,12 @@ export default function HomeScreen() {
 
         // Calculate top categories
         const categoryTotals: any = {};
-        monthlyTransactions
-            .filter(t => t.type === 'expense')
+        weeklyTransactions
             .forEach(t => {
                 if (!categoryTotals[t.category_id]) {
-                    categoryTotals[t.category_id] = { total: 0, count: 0 };
+                    categoryTotals[t.category_id] = { total: 0, count: 0, type: t.type };
+                } else if (categoryTotals[t.category_id].type !== t.type) {
+                    categoryTotals[t.category_id].type = 'mixed';
                 }
                 categoryTotals[t.category_id].total += t.amount;
                 categoryTotals[t.category_id].count += 1;
@@ -131,6 +136,7 @@ export default function HomeScreen() {
                     color: category?.color || '#6B7280',
                     total: data.total,
                     count: data.count,
+                    type: data.type,
                 };
             })
             .sort((a, b) => b.total - a.total)
@@ -161,11 +167,12 @@ export default function HomeScreen() {
         return {
             totalSpent,
             totalIncome,
-            remaining: totalIncome - totalSpent,
+            remaining,
             weeklyData,
             weekTotal,
             topCategories,
             monthlyTrend,
+            weekDateRange,
         };
     }, [transactions, categories]);
 
@@ -220,6 +227,11 @@ export default function HomeScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
+                {/* Week Date Range Header */}
+                <View style={styles.weekHeaderContainer}>
+                    <Text style={styles.weekHeaderText}>This week: {stats.weekDateRange}</Text>
+                </View>
+
                 {/* Stats Cards */}
                 <View style={styles.statsContainer}>
                     <View style={[styles.statCard, styles.statCardPrimary]}>
@@ -227,8 +239,7 @@ export default function HomeScreen() {
                             <Ionicons name="wallet-outline" size={20} color={Colors.white} />
                         </View>
                         <Text style={styles.statLabel}>Total Spent</Text>
-                        <Text style={styles.statValue}>{formatAmount(stats.totalSpent)}</Text>
-                        <Text style={styles.statSubtext}>this month</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>{formatAmount(stats.totalSpent)}</Text>
                     </View>
 
                     <View style={[styles.statCard, styles.statCardLight]}>
@@ -236,8 +247,7 @@ export default function HomeScreen() {
                             <Ionicons name="trending-up-outline" size={20} color={Colors.text.secondary} />
                         </View>
                         <Text style={[styles.statLabel, styles.statLabelDark]}>Total Income</Text>
-                        <Text style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.totalIncome)}</Text>
-                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>this month</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.totalIncome)}</Text>
                     </View>
 
                     <View style={[styles.statCard, styles.statCardOrange]}>
@@ -245,8 +255,7 @@ export default function HomeScreen() {
                             <Ionicons name="cash-outline" size={20} color="#F59E0B" />
                         </View>
                         <Text style={[styles.statLabel, styles.statLabelDark]}>Balance</Text>
-                        <Text style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.remaining)}</Text>
-                        <Text style={[styles.statSubtext, styles.statSubtextDark]}>remaining</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, styles.statValueDark]}>{formatAmount(stats.remaining)}</Text>
                     </View>
                 </View>
 
@@ -357,12 +366,15 @@ export default function HomeScreen() {
                 <View style={styles.categoryCard}>
                     <View style={styles.categoryHeader}>
                         <Text style={styles.categoryTitle}>Top Categories</Text>
-                        <Text style={styles.categorySubtitle}>This month</Text>
+                        <Text style={styles.categorySubtitle}>This week</Text>
                     </View>
 
                     {stats.topCategories.length > 0 ? (
-                        stats.topCategories.map((cat: any, index: number) => (
-                            <TouchableOpacity key={index} style={styles.categoryItem}>
+                        stats.topCategories.map((cat: any, index: number) => {
+                            const isIncome = cat.type === 'income';
+                            const isExpense = cat.type === 'expense';
+                            return (
+                                <TouchableOpacity key={index} style={styles.categoryItem}>
                                 <View style={styles.categoryLeft}>
                                     <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
                                         <Ionicons name={cat.icon as any} size={20} color={cat.color} />
@@ -373,11 +385,19 @@ export default function HomeScreen() {
                                     </View>
                                 </View>
                                 <View style={styles.categoryRight}>
-                                    <Text style={styles.categoryAmount}>${cat.total.toFixed(2)}</Text>
+                                    <Text
+                                        style={[
+                                            styles.categoryAmount,
+                                            isIncome ? styles.categoryAmountIncome : styles.categoryAmountExpense,
+                                        ]}
+                                    >
+                                        {isIncome ? '+' : isExpense ? '-' : ''}{formatAmount(cat.total)}
+                                    </Text>
                                     <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
                                 </View>
                             </TouchableOpacity>
-                        ))
+                            );
+                        })
                     ) : (
                         <Text style={styles.emptyText}>No transactions this month</Text>
                     )}
@@ -461,17 +481,18 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
+        paddingBottom: 24,
     },
     statsContainer: {
         flexDirection: 'row',
         gap: 12,
-        marginBottom: 20,
+        marginBottom: 24,
     },
     statCard: {
         flex: 1,
         borderRadius: 16,
-        padding: 16,
-        minHeight: 120,
+        padding: 18,
+        minHeight: 136,
     },
     statCardPrimary: {
         backgroundColor: Colors.primary,
@@ -498,10 +519,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FDE68A',
     },
     statLabel: {
-        fontSize: 11,
+        fontSize: 12,
         color: Colors.white,
-        marginBottom: 4,
+        marginBottom: 6,
         opacity: 0.9,
+        fontWeight: '500',
     },
     statLabelDark: {
         color: Colors.text.secondary,
@@ -510,7 +532,8 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '700',
         color: Colors.white,
-        marginBottom: 2,
+        marginBottom: 4,
+        letterSpacing: -0.5,
     },
     statValueDark: {
         color: Colors.text.primary,
@@ -678,12 +701,35 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: Colors.text.primary,
     },
+    categoryAmountIncome: {
+        color: '#22C55E',
+    },
+    categoryAmountExpense: {
+        color: Colors.text.primary,
+    },
     lastUpdated: {
         fontSize: 12,
         color: Colors.text.light,
         textAlign: 'center',
         marginTop: 16,
         paddingTop: 16,
+    },
+    weekHeaderContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        backgroundColor: 'rgba(20, 184, 166, 0.08)',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(20, 184, 166, 0.15)',
+    },
+    weekHeaderText: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: Colors.primary,
+        letterSpacing: -0.3,
     },
     bottomSpacing: {
         height: 140,

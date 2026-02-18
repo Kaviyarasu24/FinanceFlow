@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export default function PersonalInfoScreen() {
     const router = useRouter();
@@ -63,8 +63,14 @@ export default function PersonalInfoScreen() {
             console.log('Updating profile for user:', user.id);
             const { data, error: profileError } = await supabase
                 .from('profiles')
-                .update({ full_name: fullName })
-                .eq('id', user.id)
+                .upsert(
+                    {
+                        id: user.id,
+                        full_name: fullName.trim(),
+                        email: user.email || email,
+                    },
+                    { onConflict: 'id' }
+                )
                 .select();
 
             console.log('Profile update result:', { data, error: profileError });
