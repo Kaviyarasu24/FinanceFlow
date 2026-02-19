@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -18,9 +19,8 @@ import {
 export default function ProfileScreen() {
     const router = useRouter();
     const { signOut, user } = useAuth();
+    const { isDarkMode, toggleDarkMode } = useTheme();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-    const [biometricEnabled, setBiometricEnabled] = useState(true);
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -150,23 +150,8 @@ export default function ProfileScreen() {
                             <Text style={styles.menuItemText}>Dark Mode</Text>
                         </View>
                         <Switch
-                            value={darkModeEnabled}
-                            onValueChange={setDarkModeEnabled}
-                            trackColor={{ false: '#E5E7EB', true: Colors.primary }}
-                            thumbColor={Colors.white}
-                        />
-                    </View>
-
-                    <View style={styles.menuItem}>
-                        <View style={styles.menuItemLeft}>
-                            <View style={[styles.menuIcon, { backgroundColor: '#D1FAE5' }]}>
-                                <Ionicons name="finger-print-outline" size={20} color="#22C55E" />
-                            </View>
-                            <Text style={styles.menuItemText}>Biometric Login</Text>
-                        </View>
-                        <Switch
-                            value={biometricEnabled}
-                            onValueChange={setBiometricEnabled}
+                            value={isDarkMode}
+                            onValueChange={toggleDarkMode}
                             trackColor={{ false: '#E5E7EB', true: Colors.primary }}
                             thumbColor={Colors.white}
                         />

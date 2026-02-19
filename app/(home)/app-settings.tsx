@@ -26,8 +26,6 @@ export default function AppSettingsScreen() {
     const router = useRouter();
     const { settings, loading, updateSettings } = useSettings();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-    const [biometricEnabled, setBiometricEnabled] = useState(true);
     const [selectedCurrency, setSelectedCurrency] = useState('USD');
     const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -36,13 +34,11 @@ export default function AppSettingsScreen() {
         if (settings) {
             setSelectedCurrency(settings.currency_code || 'USD');
             setNotificationsEnabled(settings.notifications_enabled ?? true);
-            setDarkModeEnabled(settings.dark_mode_enabled ?? false);
-            setBiometricEnabled(settings.biometric_enabled ?? true);
         }
     }, [settings]);
 
     const handleSave = async () => {
-        console.log('Starting save...', { selectedCurrency, notificationsEnabled, darkModeEnabled, biometricEnabled });
+        console.log('Starting save...', { selectedCurrency, notificationsEnabled });
         setSaving(true);
         const selectedCurrencyObj = CURRENCIES.find(c => c.code === selectedCurrency) || CURRENCIES[0];
 
@@ -52,8 +48,6 @@ export default function AppSettingsScreen() {
             currency_code: selectedCurrency,
             currency_symbol: selectedCurrencyObj.symbol,
             notifications_enabled: notificationsEnabled,
-            dark_mode_enabled: darkModeEnabled,
-            biometric_enabled: biometricEnabled,
         };
 
         console.log('Saving settings:', settingsData);
@@ -151,48 +145,6 @@ export default function AppSettingsScreen() {
                         <Switch
                             value={notificationsEnabled}
                             onValueChange={setNotificationsEnabled}
-                            trackColor={{ false: Colors.text.light, true: Colors.primary }}
-                            thumbColor={Colors.white}
-                        />
-                    </View>
-                </View>
-
-                {/* Security */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>SECURITY</Text>
-
-                    <View style={styles.settingItem}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="finger-print-outline" size={20} color={Colors.text.secondary} />
-                            <View>
-                                <Text style={styles.settingLabel}>Biometric Authentication</Text>
-                                <Text style={styles.settingDescription}>Use fingerprint or face ID</Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={biometricEnabled}
-                            onValueChange={setBiometricEnabled}
-                            trackColor={{ false: Colors.text.light, true: Colors.primary }}
-                            thumbColor={Colors.white}
-                        />
-                    </View>
-                </View>
-
-                {/* Appearance */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>APPEARANCE</Text>
-
-                    <View style={styles.settingItem}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="moon-outline" size={20} color={Colors.text.secondary} />
-                            <View>
-                                <Text style={styles.settingLabel}>Dark Mode</Text>
-                                <Text style={styles.settingDescription}>Use dark theme</Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={darkModeEnabled}
-                            onValueChange={setDarkModeEnabled}
                             trackColor={{ false: Colors.text.light, true: Colors.primary }}
                             thumbColor={Colors.white}
                         />

@@ -3,19 +3,17 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
-    Platform,
     RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 type TransactionType = 'all' | 'income' | 'expense';
@@ -27,10 +25,6 @@ export default function TransactionsScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<TransactionType>('all');
     const [refreshing, setRefreshing] = useState(false);
-    const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
-        start: null,
-        end: null,
-    });
 
     // Refresh transactions when screen comes into focus
     useFocusEffect(
@@ -68,30 +62,7 @@ export default function TransactionsScreen() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    const formatShortDate = (date: Date | null) => {
-        if (!date) return 'Any';
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
-
     const normalizeDate = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-    const onDateChange = (field: 'start' | 'end') => (event: DateTimePickerEvent, selectedDate?: Date) => {
-        if (event.type === 'dismissed' || !selectedDate) {
-            return;
-        }
-
-        setDateRange((prev) => {
-            const next = { ...prev, [field]: normalizeDate(selectedDate) };
-            if (next.start && next.end && next.start > next.end) {
-                return field === 'start'
-                    ? { start: next.start, end: null }
-                    : { start: null, end: next.end };
-            }
-            return next;
-        });
-    };
-
-    const showClearDates = useMemo(() => Boolean(dateRange.start || dateRange.end), [dateRange]);
 
     const filteredTransactions = transactions
         .filter((transaction) => {
@@ -102,11 +73,7 @@ export default function TransactionsScreen() {
                 activeFilter === 'all' ||
                 (activeFilter === 'income' && transaction.type === 'income') ||
                 (activeFilter === 'expense' && transaction.type === 'expense');
-            const transactionDate = normalizeDate(new Date(transaction.date));
-            const matchesDate =
-                (!dateRange.start || transactionDate >= dateRange.start) &&
-                (!dateRange.end || transactionDate <= dateRange.end);
-            return matchesSearch && matchesFilter && matchesDate;
+            return matchesSearch && matchesFilter;
         })
         .sort((a, b) => {
             // Sort by created_at timestamp descending (newest first)
@@ -141,39 +108,6 @@ export default function TransactionsScreen() {
                         onChangeText={setSearchQuery}
                     />
                 </View>
-            </View>
-
-            <View style={styles.dateRangeContainer}>
-                <View style={styles.datePickerGroup}>
-                    <Text style={styles.datePickerLabel}>From</Text>
-                    <DateTimePicker
-                        value={dateRange.start || new Date()}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'inline' : 'spinner'}
-                        onChange={onDateChange('start')}
-                        style={styles.datePicker}
-                    />
-                </View>
-                <View style={styles.datePickerGroup}>
-                    <Text style={styles.datePickerLabel}>To</Text>
-                    <DateTimePicker
-                        value={dateRange.end || new Date()}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'inline' : 'spinner'}
-                        onChange={onDateChange('end')}
-                        style={styles.datePicker}
-                    />
-                </View>
-                {showClearDates && (
-                    <TouchableOpacity
-                        style={styles.dateClearButton}
-                        onPress={() => setDateRange({ start: null, end: null })}
-                        accessibilityRole="button"
-                        accessibilityLabel="Clear date range"
-                    >
-                        <Ionicons name="close" size={16} color={Colors.text.secondary} />
-                    </TouchableOpacity>
-                )}
             </View>
 
             {/* Filter Tabs */}
@@ -309,39 +243,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         color: Colors.text.primary,
-    },
-    dateRangeContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        backgroundColor: Colors.white,
-    },
-    datePickerGroup: {
-        flex: 1,
-        backgroundColor: Colors.background.primary,
-        borderRadius: 12,
-        padding: 8,
-    },
-    datePickerLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: Colors.text.secondary,
-        marginBottom: 4,
-        paddingLeft: 4,
-    },
-    datePicker: {
-        height: Platform.OS === 'ios' ? 120 : 48,
-    },
-    dateClearButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: Colors.background.primary,
     },
     filterTabs: {
         flexDirection: 'row',
