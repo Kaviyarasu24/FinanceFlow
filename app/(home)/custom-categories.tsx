@@ -81,10 +81,17 @@ export default function CustomCategoriesScreen() {
         }
     };
 
-    const isIoniconName = (icon: string) => ICON_OPTIONS.includes(icon);
+    const isIoniconName = (icon: string) => ICON_OPTIONS.includes(icon as any);
     const normalizeIcon = (icon: string) => (icon || '').trim() || 'ellipsis-horizontal';
     const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
-    const toSingleEmoji = (value: string) => Array.from(value.trim())[0] || '';
+    // Extract first emoji/character using proper Unicode iteration
+    const toSingleEmoji = (value: string) => {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        // Use Array.from with proper spread to handle complex Unicode
+        const chars = [...trimmed];
+        return chars[0] || '';
+    };
 
     const renderCategoryIcon = (icon: string, size: number) => {
         const normalized = normalizeIcon(icon);
