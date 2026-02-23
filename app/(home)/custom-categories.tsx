@@ -131,7 +131,7 @@ export default function CustomCategoriesScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(home)/profile')}>
                     <Ionicons name="arrow-back" size={24} color={Colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Custom Categories</Text>

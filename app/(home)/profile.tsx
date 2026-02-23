@@ -192,7 +192,7 @@ export default function ProfileScreen() {
                         <Ionicons name="chevron-forward" size={20} color={Colors.text.light} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(home)/help-center')}>
                         <View style={styles.menuItemLeft}>
                             <View style={[styles.menuIcon, { backgroundColor: '#DBEAFE' }]}>
                                 <Ionicons name="help-circle-outline" size={20} color="#3B82F6" />

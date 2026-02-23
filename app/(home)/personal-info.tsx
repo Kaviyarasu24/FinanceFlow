@@ -22,8 +22,10 @@ export default function PersonalInfoScreen() {
     const [email, setEmail] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -53,6 +55,17 @@ export default function PersonalInfoScreen() {
             console.log('No user found');
             Alert.alert('Error', 'User not authenticated');
             return;
+        }
+
+        if (newPassword || confirmPassword) {
+            if (!newPassword || !confirmPassword) {
+                Alert.alert('Error', 'Please enter and confirm your new password');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                Alert.alert('Error', 'Passwords do not match');
+                return;
+            }
         }
 
         console.log('Starting save...', { fullName, newPassword: !!newPassword });
@@ -102,7 +115,7 @@ export default function PersonalInfoScreen() {
             console.log('Save completed successfully');
 
             // Navigate back immediately - profile screen will auto-refresh
-            router.back();
+            router.replace('/(home)/profile');
         } catch (error) {
             console.error('Unexpected error:', error);
             Alert.alert('Error', 'An unexpected error occurred');
@@ -122,7 +135,7 @@ export default function PersonalInfoScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(home)/profile')}>
                     <Ionicons name="arrow-back" size={24} color={Colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Personal Info</Text>
@@ -154,7 +167,7 @@ export default function PersonalInfoScreen() {
                             <Ionicons name="mail-outline" size={20} color={Colors.text.secondary} />
                             <TextInput
                                 style={[styles.input, styles.inputDisabled]}
-                                value={email}
+                                value={email || user?.email || ''}
                                 placeholder="Enter your email"
                                 placeholderTextColor={Colors.text.light}
                                 keyboardType="email-address"
@@ -192,6 +205,31 @@ export default function PersonalInfoScreen() {
                                 />
                             </TouchableOpacity>
                         </View>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Confirm Password</Text>
+                        <View style={styles.inputContainer}>
+                            <Ionicons name="lock-closed-outline" size={20} color={Colors.text.secondary} />
+                            <TextInput
+                                style={styles.input}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm new password"
+                                placeholderTextColor={Colors.text.light}
+                                secureTextEntry={!showConfirmPassword}
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                <Ionicons
+                                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                                    size={20}
+                                    color={Colors.text.secondary}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                            <Text style={styles.errorText}>Passwords do not match</Text>
+                        )}
                     </View>
                 </View>
 
@@ -300,6 +338,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: Colors.text.light,
         marginTop: 4,
+    },
+    errorText: {
+        fontSize: 12,
+        color: '#EF4444',
+        marginTop: 6,
     },
     saveButton: {
         backgroundColor: Colors.primary,

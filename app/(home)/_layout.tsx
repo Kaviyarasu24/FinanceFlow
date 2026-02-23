@@ -113,6 +113,12 @@ export default function HomeLayout() {
                     href: null, // Hide from tab bar
                 }}
             />
+            <Tabs.Screen
+                name="help-center"
+                options={{
+                    href: null, // Hide from tab bar
+                }}
+            />
         </Tabs>
     );
 }

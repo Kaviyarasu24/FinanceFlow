@@ -96,48 +96,6 @@ export default function TransactionsScreen() {
                 <Text style={styles.headerTitle}>Transactions</Text>
             </View>
 
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search-outline" size={20} color={Colors.text.secondary} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search transactions..."
-                        placeholderTextColor={Colors.text.light}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </View>
-            </View>
-
-            {/* Filter Tabs */}
-            <View style={styles.filterTabs}>
-                <TouchableOpacity
-                    style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
-                    onPress={() => setActiveFilter('all')}
-                >
-                    <Text style={[styles.filterTabText, activeFilter === 'all' && styles.filterTabTextActive]}>
-                        All
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.filterTab, activeFilter === 'income' && styles.filterTabActive]}
-                    onPress={() => setActiveFilter('income')}
-                >
-                    <Text style={[styles.filterTabText, activeFilter === 'income' && styles.filterTabTextActive]}>
-                        Income
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.filterTab, activeFilter === 'expense' && styles.filterTabActive]}
-                    onPress={() => setActiveFilter('expense')}
-                >
-                    <Text style={[styles.filterTabText, activeFilter === 'expense' && styles.filterTabTextActive]}>
-                        Expense
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
             {/* Transactions List */}
             <ScrollView
                 style={styles.scrollView}
@@ -147,6 +105,48 @@ export default function TransactionsScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
                 }
             >
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchBar}>
+                        <Ionicons name="search-outline" size={20} color={Colors.text.secondary} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search transactions..."
+                            placeholderTextColor={Colors.text.light}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
+                </View>
+
+                {/* Filter Tabs */}
+                <View style={styles.filterTabs}>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
+                        onPress={() => setActiveFilter('all')}
+                    >
+                        <Text style={[styles.filterTabText, activeFilter === 'all' && styles.filterTabTextActive]}>
+                            All
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeFilter === 'income' && styles.filterTabActive]}
+                        onPress={() => setActiveFilter('income')}
+                    >
+                        <Text style={[styles.filterTabText, activeFilter === 'income' && styles.filterTabTextActive]}>
+                            Income
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeFilter === 'expense' && styles.filterTabActive]}
+                        onPress={() => setActiveFilter('expense')}
+                    >
+                        <Text style={[styles.filterTabText, activeFilter === 'expense' && styles.filterTabTextActive]}>
+                            Expense
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 {filteredTransactions.map((transaction) => {
                     const category = getCategoryInfo(transaction.category_id);
                     return (
@@ -224,10 +224,8 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        marginBottom: 12,
         gap: 12,
-        backgroundColor: Colors.white,
     },
     searchBar: {
         flex: 1,
@@ -246,12 +244,8 @@ const styles = StyleSheet.create({
     },
     filterTabs: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
         gap: 12,
-        backgroundColor: Colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        marginBottom: 16,
     },
     filterTab: {
         paddingHorizontal: 20,

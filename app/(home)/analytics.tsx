@@ -206,12 +206,20 @@ export default function AnalyticsScreen() {
     const maxValue = Math.max(...analytics.monthlyData.map(d => Math.max(d.income, d.expense)), 1);
 
     const categoryColors = ['#F97316', '#3B82F6', '#EC4899', '#A855F7', '#22C55E'];
+    const isNarrowScreen = width < 360;
 
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Analytics</Text>
+            </View>
+
+            <ScrollView
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
                 <View style={styles.dateNavigator}>
                     <TouchableOpacity 
                         onPress={goToPreviousMonth}
@@ -236,13 +244,7 @@ export default function AnalyticsScreen() {
                         />
                     </TouchableOpacity>
                 </View>
-            </View>
 
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
                 {/* Income & Expense Cards */}
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
@@ -269,9 +271,9 @@ export default function AnalyticsScreen() {
                     <Text style={styles.cardTitle}>Spending by Category</Text>
 
                     {analytics.categoryBreakdown.length > 0 ? (
-                        <View style={styles.donutContainer}>
+                        <View style={[styles.donutContainer, isNarrowScreen && styles.donutContainerStacked]}>
                             {/* Donut Chart */}
-                            <View style={styles.donutChartWrapper}>
+                            <View style={[styles.donutChartWrapper, isNarrowScreen && styles.donutChartWrapperStacked]}>
                                 <DonutChart data={analytics.categoryBreakdown} colors={categoryColors} />
                             </View>
 
@@ -393,7 +395,6 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginBottom: 16,
     },
     dateNavigator: {
         flexDirection: 'row',
@@ -403,6 +404,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 16,
+        marginBottom: 16,
     },
     navButton: {
         width: 44,
@@ -505,9 +507,16 @@ const styles = StyleSheet.create({
         gap: 24,
         justifyContent: 'space-between',
     },
+    donutContainerStacked: {
+        flexDirection: 'column',
+        alignItems: 'stretch',
+    },
     donutChartWrapper: {
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    donutChartWrapperStacked: {
+        marginBottom: 16,
     },
     categoryLegend: {
         flex: 1,
@@ -522,15 +531,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        flex: 1,
+        paddingRight: 12,
     },
     categoryLegendText: {
         fontSize: 13,
         color: Colors.text.primary,
+        flexShrink: 1,
     },
     categoryLegendPercent: {
         fontSize: 14,
         fontWeight: '600',
         color: Colors.text.primary,
+        minWidth: 36,
+        textAlign: 'right',
     },
     categoryBarsContainer: {
         gap: 16,

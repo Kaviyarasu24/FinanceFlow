@@ -217,9 +217,6 @@ export default function HomeScreen() {
                         </Text>
                     </View>
                 </View>
-                <TouchableOpacity style={styles.notificationButton}>
-                    <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
-                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -454,27 +451,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         color: Colors.text.primary,
-    },
-    notificationButton: {
-        position: 'relative',
-        padding: 8,
-    },
-    notificationBadge: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-        backgroundColor: '#EF4444',
-        borderRadius: 10,
-        minWidth: 18,
-        height: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 4,
-    },
-    notificationBadgeText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: Colors.white,
     },
     scrollView: {
         flex: 1,

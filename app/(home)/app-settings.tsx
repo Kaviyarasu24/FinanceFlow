@@ -63,7 +63,7 @@ export default function AppSettingsScreen() {
             Alert.alert('Error', `Failed to save settings: ${error}`);
         } else {
             console.log('Settings saved successfully');
-            router.back();
+            router.replace('/(home)/profile');
         }
     };
 
@@ -81,7 +81,7 @@ export default function AppSettingsScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(home)/profile')}>
                     <Ionicons name="arrow-back" size={24} color={Colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>App Settings</Text>

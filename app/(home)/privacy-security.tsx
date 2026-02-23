@@ -1,14 +1,14 @@
+import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
     ScrollView,
+    StyleSheet,
+    Text,
     TouchableOpacity,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
 
 export default function PrivacySecurityScreen() {
     const router = useRouter();
@@ -17,7 +17,7 @@ export default function PrivacySecurityScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(home)/profile')}>
                     <Ionicons name="arrow-back" size={24} color={Colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Privacy & Security</Text>
