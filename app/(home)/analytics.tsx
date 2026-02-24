@@ -71,7 +71,8 @@ export default function AnalyticsScreen() {
     const { formatAmount, getCurrencySymbol } = useCurrency();
     const { categories } = useCategories();
 
-    // State for selected month/year
+    // State for view type and selected date
+    const [viewType, setViewType] = useState<'month' | 'day'>('month');
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     // Refresh transactions when screen comes into focus
@@ -99,6 +100,24 @@ export default function AnalyticsScreen() {
         });
     };
 
+    // Navigate to previous day
+    const goToPreviousDay = () => {
+        setSelectedDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setDate(newDate.getDate() - 1);
+            return newDate;
+        });
+    };
+
+    // Navigate to next day
+    const goToNextDay = () => {
+        setSelectedDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setDate(newDate.getDate() + 1);
+            return newDate;
+        });
+    };
+
     // Check if we can go to next month (don't go beyond current month)
     const canGoNext = () => {
         const now = new Date();
@@ -107,92 +126,193 @@ export default function AnalyticsScreen() {
         return selectedYearMonth < currentYearMonth;
     };
 
+    // Check if we can go to next day (don't go beyond today)
+    const canGoNextDay = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selected = new Date(selectedDate);
+        selected.setHours(0, 0, 0, 0);
+        return selected < today;
+    };
+
     // Calculate analytics data
     const analytics = useMemo(() => {
-        const currentMonth = selectedDate.getMonth();
-        const currentYear = selectedDate.getFullYear();
+        if (viewType === 'month') {
+            const currentMonth = selectedDate.getMonth();
+            const currentYear = selectedDate.getFullYear();
 
-        // Current month transactions
-        const currentMonthTrans = transactions.filter(t => {
-            const date = new Date(t.date);
-            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-        });
-
-        const income = currentMonthTrans
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const expense = currentMonthTrans
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
-        const savings = income - expense;
-
-        // Last 6 months data
-        const monthlyData = [];
-        for (let i = 5; i >= 0; i--) {
-            const targetDate = new Date(currentYear, currentMonth - i, 1);
-            const monthTrans = transactions.filter(t => {
+            // Current month transactions
+            const currentMonthTrans = transactions.filter(t => {
                 const date = new Date(t.date);
-                return date.getMonth() === targetDate.getMonth() &&
-                    date.getFullYear() === targetDate.getFullYear();
+                return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
             });
 
-            const monthIncome = monthTrans
+            const income = currentMonthTrans
                 .filter(t => t.type === 'income')
                 .reduce((sum, t) => sum + t.amount, 0);
 
-            const monthExpense = monthTrans
+            const expense = currentMonthTrans
                 .filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0);
 
-            monthlyData.push({
-                month: targetDate.toLocaleDateString('en-US', { month: 'short' }),
-                income: monthIncome,
-                expense: monthExpense,
+            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            const savings = income - expense;
+
+            // Last 6 months data
+            const monthlyData = [];
+            for (let i = 5; i >= 0; i--) {
+                const targetDate = new Date(currentYear, currentMonth - i, 1);
+                const monthTrans = transactions.filter(t => {
+                    const date = new Date(t.date);
+                    return date.getMonth() === targetDate.getMonth() &&
+                        date.getFullYear() === targetDate.getFullYear();
+                });
+
+                const monthIncome = monthTrans
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const monthExpense = monthTrans
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                monthlyData.push({
+                    month: targetDate.toLocaleDateString('en-US', { month: 'short' }),
+                    income: monthIncome,
+                    expense: monthExpense,
+                });
+            }
+
+            // Category breakdown (expenses only)
+            const categoryTotals: any = {};
+            let totalExpense = 0;
+            currentMonthTrans
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    if (!categoryTotals[t.category_id]) {
+                        categoryTotals[t.category_id] = 0;
+                    }
+                    categoryTotals[t.category_id] += t.amount;
+                    totalExpense += t.amount;
+                });
+
+            const categoryBreakdown = Object.entries(categoryTotals)
+                .map(([id, amount]: [string, any]) => {
+                    const category = categories.find(c => c.id === id);
+                    return {
+                        id,
+                        name: category?.name || 'Unknown',
+                        icon: category?.icon || 'help-circle-outline',
+                        amount,
+                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+                    };
+                })
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 5);
+
+            return {
+                income,
+                expense,
+                savingsRate,
+                savings,
+                monthlyData,
+                categoryBreakdown,
+            };
+        } else {
+            // Day view logic
+            const selectedYear = selectedDate.getFullYear();
+            const selectedMonth = selectedDate.getMonth();
+            const selectedDay = selectedDate.getDate();
+
+            // Current day transactions
+            const currentDayTrans = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date.getDate() === selectedDay &&
+                    date.getMonth() === selectedMonth &&
+                    date.getFullYear() === selectedYear;
             });
+
+            const income = currentDayTrans
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const expense = currentDayTrans
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            const savings = income - expense;
+
+            // Last 7 days data
+            const dailyData = [];
+            for (let i = 6; i >= 0; i--) {
+                const targetDate = new Date(selectedYear, selectedMonth, selectedDay - i);
+                const dayTrans = transactions.filter(t => {
+                    const date = new Date(t.date);
+                    return date.getDate() === targetDate.getDate() &&
+                        date.getMonth() === targetDate.getMonth() &&
+                        date.getFullYear() === targetDate.getFullYear();
+                });
+
+                const dayIncome = dayTrans
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const dayExpense = dayTrans
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                dailyData.push({
+                    month: targetDate.toLocaleDateString('en-US', { weekday: 'short' }),
+                    income: dayIncome,
+                    expense: dayExpense,
+                });
+            }
+
+            // Category breakdown (expenses only)
+            const categoryTotals: any = {};
+            let totalExpense = 0;
+            currentDayTrans
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    if (!categoryTotals[t.category_id]) {
+                        categoryTotals[t.category_id] = 0;
+                    }
+                    categoryTotals[t.category_id] += t.amount;
+                    totalExpense += t.amount;
+                });
+
+            const categoryBreakdown = Object.entries(categoryTotals)
+                .map(([id, amount]: [string, any]) => {
+                    const category = categories.find(c => c.id === id);
+                    return {
+                        id,
+                        name: category?.name || 'Unknown',
+                        icon: category?.icon || 'help-circle-outline',
+                        amount,
+                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+                    };
+                })
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 5);
+
+            return {
+                income,
+                expense,
+                savingsRate,
+                savings,
+                monthlyData: dailyData,
+                categoryBreakdown,
+            };
         }
-
-        // Category breakdown (expenses only)
-        const categoryTotals: any = {};
-        let totalExpense = 0;
-        currentMonthTrans
-            .filter(t => t.type === 'expense')
-            .forEach(t => {
-                if (!categoryTotals[t.category_id]) {
-                    categoryTotals[t.category_id] = 0;
-                }
-                categoryTotals[t.category_id] += t.amount;
-                totalExpense += t.amount;
-            });
-
-        const categoryBreakdown = Object.entries(categoryTotals)
-            .map(([id, amount]: [string, any]) => {
-                const category = categories.find(c => c.id === id);
-                return {
-                    id,
-                    name: category?.name || 'Unknown',
-                    icon: category?.icon || 'help-circle-outline',
-                    amount,
-                    percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-                };
-            })
-            .sort((a, b) => b.amount - a.amount)
-            .slice(0, 5);
-
-        return {
-            income,
-            expense,
-            savingsRate,
-            savings,
-            monthlyData,
-            categoryBreakdown,
-        };
-    }, [transactions, categories, selectedDate]);
+    }, [transactions, categories, selectedDate, viewType]);
 
     const getMonthYear = () => {
-        return selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        if (viewType === 'month') {
+            return selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        } else {
+            return selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        }
     };
 
     if (loading) {
@@ -220,9 +340,31 @@ export default function AnalyticsScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
+                {/* View Type Toggle */}
+                <View style={styles.toggleContainer}>
+                    <TouchableOpacity
+                        onPress={() => setViewType('month')}
+                        style={[styles.toggleButton, viewType === 'month' && styles.toggleButtonActive]}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.toggleButtonText, viewType === 'month' && styles.toggleButtonTextActive]}>
+                            Monthly
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setViewType('day')}
+                        style={[styles.toggleButton, viewType === 'day' && styles.toggleButtonActive]}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.toggleButtonText, viewType === 'day' && styles.toggleButtonTextActive]}>
+                            Daily
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 <View style={styles.dateNavigator}>
                     <TouchableOpacity 
-                        onPress={goToPreviousMonth}
+                        onPress={viewType === 'month' ? goToPreviousMonth : goToPreviousDay}
                         style={styles.navButton}
                         activeOpacity={0.7}
                     >
@@ -232,15 +374,15 @@ export default function AnalyticsScreen() {
                         {getMonthYear()}
                     </Text>
                     <TouchableOpacity 
-                        onPress={goToNextMonth}
-                        style={[styles.navButton, !canGoNext() && styles.navButtonDisabled]}
-                        disabled={!canGoNext()}
+                        onPress={viewType === 'month' ? goToNextMonth : goToNextDay}
+                        style={[styles.navButton, !((viewType === 'month' ? canGoNext() : canGoNextDay())) && styles.navButtonDisabled]}
+                        disabled={!((viewType === 'month' ? canGoNext() : canGoNextDay()))}
                         activeOpacity={0.7}
                     >
                         <Ionicons 
                             name="chevron-forward" 
                             size={24} 
-                            color={canGoNext() ? '#000000' : Colors.text.light} 
+                            color={(viewType === 'month' ? canGoNext() : canGoNextDay()) ? '#000000' : Colors.text.light} 
                         />
                     </TouchableOpacity>
                 </View>
@@ -253,7 +395,7 @@ export default function AnalyticsScreen() {
                             <Text style={styles.statLabel}>Income</Text>
                         </View>
                         <Text style={styles.statValue}>{formatAmount(analytics.income)}</Text>
-                        <Text style={styles.statChange}>This month</Text>
+                        <Text style={styles.statChange}>This {viewType === 'month' ? 'month' : 'day'}</Text>
                     </View>
 
                     <View style={styles.statCard}>
@@ -262,7 +404,7 @@ export default function AnalyticsScreen() {
                             <Text style={styles.statLabel}>Expense</Text>
                         </View>
                         <Text style={styles.statValue}>{formatAmount(analytics.expense)}</Text>
-                        <Text style={styles.statChangeNegative}>This month</Text>
+                        <Text style={styles.statChangeNegative}>This {viewType === 'month' ? 'month' : 'day'}</Text>
                     </View>
                 </View>
 
@@ -291,64 +433,66 @@ export default function AnalyticsScreen() {
                             </View>
                         </View>
                     ) : (
-                        <Text style={styles.emptyText}>No expense data for this month</Text>
+                        <Text style={styles.emptyText}>No expense data for this {viewType === 'month' ? 'month' : 'day'}</Text>
                     )}
                 </View>
 
-                {/* Income vs Expense Chart */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Income vs Expense</Text>
+                {/* Income vs Expense Chart - Only show for month view */}
+                {viewType === 'month' && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Income vs Expense</Text>
 
-                    <View style={styles.barChartContainer}>
-                        {/* Y-axis labels */}
-                        <View style={styles.yAxis}>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue / 1000).toFixed(0)}k</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.75 / 1000).toFixed(1)}k</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.5 / 1000).toFixed(1)}k</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.25 / 1000).toFixed(1)}k</Text>
-                            <Text style={styles.yAxisLabel}>{getCurrencySymbol()}0k</Text>
-                        </View>
+                        <View style={styles.barChartContainer}>
+                            {/* Y-axis labels */}
+                            <View style={styles.yAxis}>
+                                <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue / 1000).toFixed(0)}k</Text>
+                                <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.75 / 1000).toFixed(1)}k</Text>
+                                <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.5 / 1000).toFixed(1)}k</Text>
+                                <Text style={styles.yAxisLabel}>{getCurrencySymbol()}{(maxValue * 0.25 / 1000).toFixed(1)}k</Text>
+                                <Text style={styles.yAxisLabel}>{getCurrencySymbol()}0k</Text>
+                            </View>
 
-                        {/* Bar Chart */}
-                        <View style={styles.barChart}>
-                            {analytics.monthlyData.map((data, index) => {
-                                const incomeHeight = data.income > 0 ? Math.max((data.income / maxValue) * 180, 8) : 0;
-                                const expenseHeight = data.expense > 0 ? Math.max((data.expense / maxValue) * 180, 8) : 0;
-                                return (
-                                    <View key={index} style={styles.barGroup}>
-                                        <View style={styles.barPair}>
-                                            {/* Income Bar */}
-                                            {data.income > 0 ? (
-                                                <View style={[styles.bar, styles.incomeBar, { height: incomeHeight }]} />
-                                            ) : (
-                                                <View style={styles.barPlaceholder} />
-                                            )}
-                                            {/* Expense Bar */}
-                                            {data.expense > 0 ? (
-                                                <View style={[styles.bar, styles.expenseBar, { height: expenseHeight }]} />
-                                            ) : (
-                                                <View style={styles.barPlaceholder} />
-                                            )}
+                            {/* Bar Chart */}
+                            <View style={styles.barChart}>
+                                {analytics.monthlyData.map((data, index) => {
+                                    const incomeHeight = data.income > 0 ? Math.max((data.income / maxValue) * 180, 8) : 0;
+                                    const expenseHeight = data.expense > 0 ? Math.max((data.expense / maxValue) * 180, 8) : 0;
+                                    return (
+                                        <View key={index} style={styles.barGroup}>
+                                            <View style={styles.barPair}>
+                                                {/* Income Bar */}
+                                                {data.income > 0 ? (
+                                                    <View style={[styles.bar, styles.incomeBar, { height: incomeHeight }]} />
+                                                ) : (
+                                                    <View style={styles.barPlaceholder} />
+                                                )}
+                                                {/* Expense Bar */}
+                                                {data.expense > 0 ? (
+                                                    <View style={[styles.bar, styles.expenseBar, { height: expenseHeight }]} />
+                                                ) : (
+                                                    <View style={styles.barPlaceholder} />
+                                                )}
+                                            </View>
+                                            <Text style={styles.barLabel}>{data.month}</Text>
                                         </View>
-                                        <Text style={styles.barLabel}>{data.month}</Text>
-                                    </View>
-                                );
-                            })}
+                                    );
+                                })}
+                            </View>
                         </View>
-                    </View>
 
-                    {/* Chart Legend */}
-                    <View style={styles.chartLegend}>
-                        <View style={styles.chartLegendItem}>
-                            <View style={[styles.chartLegendDot, { backgroundColor: '#22C55E' }]} />
-                            <Text style={styles.chartLegendText}>Income</Text>
-                        </View>
-                        <View style={styles.chartLegendItem}>
-                            <View style={[styles.chartLegendDot, { backgroundColor: '#FBBF24' }]} />
-                            <Text style={styles.chartLegendText}>Expense</Text>
+                        {/* Chart Legend */}
+                        <View style={styles.chartLegend}>
+                            <View style={styles.chartLegendItem}>
+                                <View style={[styles.chartLegendDot, { backgroundColor: '#22C55E' }]} />
+                                <Text style={styles.chartLegendText}>Income</Text>
+                            </View>
+                            <View style={styles.chartLegendItem}>
+                                <View style={[styles.chartLegendDot, { backgroundColor: '#FBBF24' }]} />
+                                <Text style={styles.chartLegendText}>Expense</Text>
+                            </View>
                         </View>
                     </View>
-                </View>
+                )}
 
                 {/* Savings Rate */}
                 <View style={styles.savingsCard}>
@@ -356,7 +500,7 @@ export default function AnalyticsScreen() {
                         <Text style={styles.savingsLabel}>Savings Rate</Text>
                         <Text style={styles.savingsValue}>{analytics.savingsRate.toFixed(1)}%</Text>
                         <Text style={styles.savingsSubtext}>
-                            You are {analytics.savings >= 0 ? 'saving' : 'overspending'} {formatAmount(Math.abs(analytics.savings))} this month
+                            You are {analytics.savings >= 0 ? 'saving' : 'overspending'} {formatAmount(Math.abs(analytics.savings))} this {viewType === 'month' ? 'month' : 'day'}
                         </Text>
                     </View>
                     <View style={styles.savingsIcon}>
@@ -429,6 +573,38 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
+    },
+    toggleContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+        gap: 8,
+    },
+    toggleButton: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    toggleButtonActive: {
+        backgroundColor: Colors.white,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    toggleButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.text.secondary,
+    },
+    toggleButtonTextActive: {
+        color: Colors.primary,
     },
     statsRow: {
         flexDirection: 'row',
