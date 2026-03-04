@@ -120,6 +120,11 @@ export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
         });
     };
 
+    const formatDateForDisplay = (date: Date) => {
+        const formatted = formatDate(date);
+        return formatted || 'Select date';
+    };
+
     const previousYear = () => {
         setCurrentMonth(new Date(currentMonth.getFullYear() - 1, currentMonth.getMonth(), 1));
     };
@@ -169,9 +174,13 @@ export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
             <TouchableOpacity
                 style={styles.dateButton}
                 onPress={() => setShowCalendar(true)}
+                accessible={true}
+                accessibilityLabel={`Date picker: ${formatDateForDisplay(date)}`}
+                accessibilityRole="button"
+                accessibilityHint="Double tap to open date picker"
             >
                 <Ionicons name="calendar-outline" size={20} color={Colors.text.secondary} />
-                <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
+                <Text style={styles.dateButtonText}>{formatDateForDisplay(date)}</Text>
             </TouchableOpacity>
 
             <Modal
@@ -184,9 +193,11 @@ export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
                     <View style={styles.modal}>
                         {/* Header */}
                         <View style={styles.header}>
-                            <Text style={styles.yearText}>{currentMonth.getFullYear()}</Text>
-                            <Text style={styles.dateText}>
-                                {formatDate(date)}
+                            <Text style={styles.yearText}>
+                                {mode === 'month-year' ? currentMonth.getFullYear() : currentMonth.getFullYear()}
+                            </Text>
+                            <Text style={styles.dateText} accessible={true} accessibilityLabel={`Selected: ${formatDateForDisplay(date)}`}>
+                                {formatDateForDisplay(date)}
                             </Text>
                         </View>
 

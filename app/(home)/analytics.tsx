@@ -19,8 +19,104 @@ import Svg, { Circle, G } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
+// Type definitions
+interface CategoryBreakdown {
+    id: string;
+    name: string;
+    icon: string;
+    amount: number;
+    percentage: number;
+}
+
+interface ChartData {
+    month: string;
+    income: number;
+    expense: number;
+}
+
+interface Analytics {
+    income: number;
+    expense: number;
+    savingsRate: number;
+    savings: number;
+    monthlyData: ChartData[];
+    categoryBreakdown: CategoryBreakdown[];
+}
+
+interface Transaction {
+    date: string;
+    type: 'income' | 'expense';
+    amount: number;
+    category_id: string;
+}
+
+// Helper functions
+const isSameMonth = (date1: Date, date2: Date): boolean => {
+    return date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear();
+};
+
+const isSameDay = (date1: Date, date2: Date): boolean => {
+    return date1.getDate() === date2.getDate() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getFullYear() === date2.getFullYear();
+};
+
+const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
+    const d = new Date(date);
+    const s = new Date(start);
+    const e = new Date(end);
+    s.setHours(0, 0, 0, 0);
+    e.setHours(23, 59, 59, 999);
+    return d >= s && d <= e;
+};
+
+const calculateCategoryBreakdown = (
+    transactions: Transaction[],
+    categories: any[],
+    maxItems: number = 5
+): CategoryBreakdown[] => {
+    const categoryTotals: Record<string, number> = {};
+    let totalExpense = 0;
+
+    transactions
+        .filter(t => t.type === 'expense')
+        .forEach(t => {
+            categoryTotals[t.category_id] = (categoryTotals[t.category_id] || 0) + t.amount;
+            totalExpense += t.amount;
+        });
+
+    return Object.entries(categoryTotals)
+        .map(([id, amount]) => {
+            const category = categories.find(c => c.id === id);
+            return {
+                id,
+                name: category?.name || 'Unknown',
+                icon: category?.icon || 'help-circle-outline',
+                amount,
+                percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+            };
+        })
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, maxItems);
+};
+
+const calculateIncome = (transactions: Transaction[]): number =>
+    transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+const calculateExpense = (transactions: Transaction[]): number =>
+    transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+
 // Donut Chart Component
-const DonutChart = ({ data, colors }: { data: any[], colors: string[] }) => {
+interface DonutChartProps {
+    data: CategoryBreakdown[];
+    colors: string[];
+}
+
+const DonutChart: React.FC<DonutChartProps> = ({ data, colors }) => {
     const size = 140;
     const strokeWidth = 28;
     const radius = (size - strokeWidth) / 2;
@@ -94,259 +190,96 @@ export default function AnalyticsScreen() {
     // Calculate analytics data
     const analytics = useMemo(() => {
         if (viewType === 'month') {
-            const currentMonth = selectedDate.getMonth();
-            const currentYear = selectedDate.getFullYear();
-
-            // Current month transactions
-            const currentMonthTrans = transactions.filter(t => {
-                const date = new Date(t.date);
-                return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-            });
-
-            const income = currentMonthTrans
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const expense = currentMonthTrans
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            const filteredTrans = transactions.filter(t => isSameMonth(new Date(t.date), selectedDate));
+            const income = calculateIncome(filteredTrans);
+            const expense = calculateExpense(filteredTrans);
             const savings = income - expense;
 
             // Last 6 months data
-            const monthlyData = [];
+            const monthlyData: ChartData[] = [];
             for (let i = 5; i >= 0; i--) {
-                const targetDate = new Date(currentYear, currentMonth - i, 1);
-                const monthTrans = transactions.filter(t => {
-                    const date = new Date(t.date);
-                    return date.getMonth() === targetDate.getMonth() &&
-                        date.getFullYear() === targetDate.getFullYear();
-                });
-
-                const monthIncome = monthTrans
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
-                const monthExpense = monthTrans
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
+                const targetDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - i, 1);
+                const monthTrans = transactions.filter(t => isSameMonth(new Date(t.date), targetDate));
                 monthlyData.push({
                     month: targetDate.toLocaleDateString('en-US', { month: 'short' }),
-                    income: monthIncome,
-                    expense: monthExpense,
+                    income: calculateIncome(monthTrans),
+                    expense: calculateExpense(monthTrans),
                 });
             }
-
-            // Category breakdown (expenses only)
-            const categoryTotals: any = {};
-            let totalExpense = 0;
-            currentMonthTrans
-                .filter(t => t.type === 'expense')
-                .forEach(t => {
-                    if (!categoryTotals[t.category_id]) {
-                        categoryTotals[t.category_id] = 0;
-                    }
-                    categoryTotals[t.category_id] += t.amount;
-                    totalExpense += t.amount;
-                });
-
-            const categoryBreakdown = Object.entries(categoryTotals)
-                .map(([id, amount]: [string, any]) => {
-                    const category = categories.find(c => c.id === id);
-                    return {
-                        id,
-                        name: category?.name || 'Unknown',
-                        icon: category?.icon || 'help-circle-outline',
-                        amount,
-                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-                    };
-                })
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 5);
 
             return {
                 income,
                 expense,
-                savingsRate,
+                savingsRate: income > 0 ? ((savings) / income) * 100 : 0,
                 savings,
                 monthlyData,
-                categoryBreakdown,
+                categoryBreakdown: calculateCategoryBreakdown(filteredTrans, categories),
             };
         } else if (viewType === 'day') {
-            // Day view logic
-            const selectedYear = selectedDate.getFullYear();
-            const selectedMonth = selectedDate.getMonth();
-            const selectedDay = selectedDate.getDate();
-
-            // Current day transactions
-            const currentDayTrans = transactions.filter(t => {
-                const date = new Date(t.date);
-                return date.getDate() === selectedDay &&
-                    date.getMonth() === selectedMonth &&
-                    date.getFullYear() === selectedYear;
-            });
-
-            const income = currentDayTrans
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const expense = currentDayTrans
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            const filteredTrans = transactions.filter(t => isSameDay(new Date(t.date), selectedDate));
+            const income = calculateIncome(filteredTrans);
+            const expense = calculateExpense(filteredTrans);
             const savings = income - expense;
 
             // Last 7 days data
-            const dailyData = [];
+            const dailyData: ChartData[] = [];
             for (let i = 6; i >= 0; i--) {
-                const targetDate = new Date(selectedYear, selectedMonth, selectedDay - i);
-                const dayTrans = transactions.filter(t => {
-                    const date = new Date(t.date);
-                    return date.getDate() === targetDate.getDate() &&
-                        date.getMonth() === targetDate.getMonth() &&
-                        date.getFullYear() === targetDate.getFullYear();
-                });
-
-                const dayIncome = dayTrans
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
-                const dayExpense = dayTrans
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
+                const targetDate = new Date(selectedDate);
+                targetDate.setDate(selectedDate.getDate() - i);
+                const dayTrans = transactions.filter(t => isSameDay(new Date(t.date), targetDate));
                 dailyData.push({
                     month: targetDate.toLocaleDateString('en-US', { weekday: 'short' }),
-                    income: dayIncome,
-                    expense: dayExpense,
+                    income: calculateIncome(dayTrans),
+                    expense: calculateExpense(dayTrans),
                 });
             }
-
-            // Category breakdown (expenses only)
-            const categoryTotals: any = {};
-            let totalExpense = 0;
-            currentDayTrans
-                .filter(t => t.type === 'expense')
-                .forEach(t => {
-                    if (!categoryTotals[t.category_id]) {
-                        categoryTotals[t.category_id] = 0;
-                    }
-                    categoryTotals[t.category_id] += t.amount;
-                    totalExpense += t.amount;
-                });
-
-            const categoryBreakdown = Object.entries(categoryTotals)
-                .map(([id, amount]: [string, any]) => {
-                    const category = categories.find(c => c.id === id);
-                    return {
-                        id,
-                        name: category?.name || 'Unknown',
-                        icon: category?.icon || 'help-circle-outline',
-                        amount,
-                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-                    };
-                })
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 5);
 
             return {
                 income,
                 expense,
-                savingsRate,
+                savingsRate: income > 0 ? ((savings) / income) * 100 : 0,
                 savings,
                 monthlyData: dailyData,
-                categoryBreakdown,
+                categoryBreakdown: calculateCategoryBreakdown(filteredTrans, categories),
             };
         } else {
-            // Range view logic
-            const rangeTrans = transactions.filter(t => {
-                const date = new Date(t.date);
-                const start = new Date(rangeStartDate);
-                const end = new Date(rangeEndDate);
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                return date >= start && date <= end;
-            });
-
-            const income = rangeTrans
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const expense = rangeTrans
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
-
-            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            // Range view
+            const filteredTrans = transactions.filter(t =>
+                isDateInRange(new Date(t.date), rangeStartDate, rangeEndDate)
+            );
+            const income = calculateIncome(filteredTrans);
+            const expense = calculateExpense(filteredTrans);
             const savings = income - expense;
 
-            // Daily breakdown for the range
-            const rangeData = [];
+            // Daily breakdown
+            const rangeData: ChartData[] = [];
             const currentDate = new Date(rangeStartDate);
             while (currentDate <= rangeEndDate) {
-                const dayTrans = transactions.filter(t => {
-                    const date = new Date(t.date);
-                    return date.getDate() === currentDate.getDate() &&
-                        date.getMonth() === currentDate.getMonth() &&
-                        date.getFullYear() === currentDate.getFullYear();
-                });
-
-                const dayIncome = dayTrans
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
-                const dayExpense = dayTrans
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
+                const dayTrans = transactions.filter(t => isSameDay(new Date(t.date), currentDate));
                 rangeData.push({
                     month: currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
-                    income: dayIncome,
-                    expense: dayExpense,
+                    income: calculateIncome(dayTrans),
+                    expense: calculateExpense(dayTrans),
                 });
-
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
-            // Category breakdown (expenses only)
-            const categoryTotals: any = {};
-            let totalExpense = 0;
-            rangeTrans
-                .filter(t => t.type === 'expense')
-                .forEach(t => {
-                    if (!categoryTotals[t.category_id]) {
-                        categoryTotals[t.category_id] = 0;
-                    }
-                    categoryTotals[t.category_id] += t.amount;
-                    totalExpense += t.amount;
-                });
-
-            const categoryBreakdown = Object.entries(categoryTotals)
-                .map(([id, amount]: [string, any]) => {
-                    const category = categories.find(c => c.id === id);
-                    return {
-                        id,
-                        name: category?.name || 'Unknown',
-                        icon: category?.icon || 'help-circle-outline',
-                        amount,
-                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-                    };
-                })
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 5);
-
             return {
                 income,
                 expense,
-                savingsRate,
+                savingsRate: income > 0 ? ((savings) / income) * 100 : 0,
                 savings,
                 monthlyData: rangeData,
-                categoryBreakdown,
+                categoryBreakdown: calculateCategoryBreakdown(filteredTrans, categories),
             };
         }
     }, [transactions, categories, selectedDate, viewType, rangeStartDate, rangeEndDate]);
+
+    // Calculate max value for chart (must be before loading check to maintain hook order)
+    const maxValue = useMemo(
+        () => Math.max(...analytics.monthlyData.map(d => Math.max(d.income, d.expense)), 1),
+        [analytics.monthlyData]
+    );
 
     const getMonthYear = () => {
         if (viewType === 'month') {
@@ -363,12 +296,11 @@ export default function AnalyticsScreen() {
     if (loading) {
         return (
             <View style={[styles.container, styles.centerContent]}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={Colors.primary} testID="loading-spinner" />
+                <Text style={styles.loadingText}>Loading analytics...</Text>
             </View>
         );
     }
-
-    const maxValue = Math.max(...analytics.monthlyData.map(d => Math.max(d.income, d.expense)), 1);
 
     const categoryColors = ['#F97316', '#3B82F6', '#EC4899', '#A855F7', '#22C55E'];
     const isNarrowScreen = width < 360;
@@ -504,7 +436,15 @@ export default function AnalyticsScreen() {
                             </View>
                         </View>
                     ) : (
-                        <Text style={styles.emptyText}>No expense data for this {viewType === 'month' ? 'month' : viewType === 'day' ? 'day' : 'period'}</Text>
+                        <View style={styles.emptyStateContainer}>
+                            <Ionicons name="pie-chart-outline" size={48} color={Colors.text.light} />
+                            <Text style={styles.emptyText}>
+                                No expenses {viewType === 'month' ? 'this month' : viewType === 'day' ? 'today' : 'in this period'}
+                            </Text>
+                            <Text style={styles.emptySubtext}>
+                                When you add expenses, they'll appear here
+                            </Text>
+                        </View>
                     )}
                 </View>
 
@@ -595,6 +535,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: Colors.text.secondary,
+        fontWeight: '500',
+    },
     header: {
         backgroundColor: Colors.white,
         paddingHorizontal: 20,
@@ -629,10 +575,12 @@ const styles = StyleSheet.create({
     rangeDateContainer: {
         flexDirection: 'row',
         gap: 8,
+        flexWrap: 'wrap',
     },
     rangeDateItem: {
         flex: 1,
         gap: 6,
+        minWidth: 140,
     },
     rangeDateLabel: {
         fontSize: 12,
@@ -840,6 +788,18 @@ const styles = StyleSheet.create({
         color: Colors.text.secondary,
         textAlign: 'center',
         paddingVertical: 20,
+    },
+    emptyStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+        gap: 8,
+    },
+    emptySubtext: {
+        fontSize: 13,
+        color: Colors.text.light,
+        textAlign: 'center',
+        marginTop: 4,
     },
     barChartContainer: {
         flexDirection: 'row',
