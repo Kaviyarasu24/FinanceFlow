@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Modal,
     StyleSheet,
@@ -13,15 +13,23 @@ interface CalendarDatePickerProps {
     date: Date;
     onDateChange: (date: Date) => void;
     maximumDate?: Date;
+    mode?: 'date' | 'month-year';
 }
 
 export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
     date,
     onDateChange,
     maximumDate,
+    mode = 'date',
 }) => {
     const [showCalendar, setShowCalendar] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date(date));
+
+    useEffect(() => {
+        if (showCalendar) {
+            setCurrentMonth(new Date(date));
+        }
+    }, [date, showCalendar]);
 
     const getDaysInMonth = (date: Date) => {
         return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -97,12 +105,62 @@ export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
     };
 
     const formatDate = (date: Date) => {
-        const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
+        if (mode === 'month-year') {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                year: 'numeric',
+            });
+        }
+
         return date.toLocaleDateString('en-US', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
             year: 'numeric',
+        });
+    };
+
+    const previousYear = () => {
+        setCurrentMonth(new Date(currentMonth.getFullYear() - 1, currentMonth.getMonth(), 1));
+    };
+
+    const nextYear = () => {
+        setCurrentMonth(new Date(currentMonth.getFullYear() + 1, currentMonth.getMonth(), 1));
+    };
+
+    const renderMonths = () => {
+        return monthNames.map((monthName, monthIndex) => {
+            const monthDate = new Date(currentMonth.getFullYear(), monthIndex, 1);
+            const selectedMonth = date.getMonth() === monthIndex && date.getFullYear() === currentMonth.getFullYear();
+            const isDisabled = maximumDate && monthDate > new Date(maximumDate.getFullYear(), maximumDate.getMonth(), 1);
+
+            return (
+                <TouchableOpacity
+                    key={`month-${monthIndex}`}
+                    style={[
+                        styles.monthCell,
+                        selectedMonth && styles.monthCellSelected,
+                        isDisabled && styles.monthCellDisabled,
+                    ]}
+                    onPress={() => {
+                        if (!isDisabled) {
+                            onDateChange(new Date(currentMonth.getFullYear(), monthIndex, 1));
+                            setShowCalendar(false);
+                        }
+                    }}
+                    disabled={isDisabled}
+                >
+                    <Text
+                        style={[
+                            styles.monthCellText,
+                            selectedMonth && styles.monthCellTextSelected,
+                            isDisabled && styles.monthCellTextDisabled,
+                        ]}
+                    >
+                        {monthName.slice(0, 3)}
+                    </Text>
+                </TouchableOpacity>
+            );
         });
     };
 
@@ -134,38 +192,66 @@ export const CalendarDatePicker: React.FC<CalendarDatePickerProps> = ({
 
                         {/* Calendar */}
                         <View style={styles.calendarContainer}>
-                            {/* Month navigation */}
-                            <View style={styles.monthHeader}>
-                                <TouchableOpacity
-                                    onPress={previousMonth}
-                                    style={styles.navButton}
-                                >
-                                    <Ionicons name="chevron-back" size={24} color={Colors.text.secondary} />
-                                </TouchableOpacity>
-                                <Text style={styles.monthText}>
-                                    {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={nextMonth}
-                                    style={styles.navButton}
-                                >
-                                    <Ionicons name="chevron-forward" size={24} color={Colors.text.secondary} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Day names */}
-                            <View style={styles.dayNamesRow}>
-                                {dayNames.map((day) => (
-                                    <View key={`dayname-${day}`} style={styles.dayNameCell}>
-                                        <Text style={styles.dayNameText}>{day}</Text>
+                            {mode === 'month-year' ? (
+                                <>
+                                    <View style={styles.monthHeader}>
+                                        <TouchableOpacity
+                                            onPress={previousYear}
+                                            style={styles.navButton}
+                                        >
+                                            <Ionicons name="chevron-back" size={24} color={Colors.text.secondary} />
+                                        </TouchableOpacity>
+                                        <Text style={styles.monthText}>
+                                            {currentMonth.getFullYear()}
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={nextYear}
+                                            style={styles.navButton}
+                                        >
+                                            <Ionicons name="chevron-forward" size={24} color={Colors.text.secondary} />
+                                        </TouchableOpacity>
                                     </View>
-                                ))}
-                            </View>
 
-                            {/* Days grid */}
-                            <View style={styles.daysGrid}>
-                                {renderDays()}
-                            </View>
+                                    <View style={styles.monthsGrid}>
+                                        {renderMonths()}
+                                    </View>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Month navigation */}
+                                    <View style={styles.monthHeader}>
+                                        <TouchableOpacity
+                                            onPress={previousMonth}
+                                            style={styles.navButton}
+                                        >
+                                            <Ionicons name="chevron-back" size={24} color={Colors.text.secondary} />
+                                        </TouchableOpacity>
+                                        <Text style={styles.monthText}>
+                                            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={nextMonth}
+                                            style={styles.navButton}
+                                        >
+                                            <Ionicons name="chevron-forward" size={24} color={Colors.text.secondary} />
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Day names */}
+                                    <View style={styles.dayNamesRow}>
+                                        {dayNames.map((day, index) => (
+                                            <View key={`dayname-${index}`} style={styles.dayNameCell}>
+                                                <Text style={styles.dayNameText}>{day}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {/* Days grid */}
+                                    <View style={styles.daysGrid}>
+                                        {renderDays()}
+                                    </View>
+                                </>
+                            )}
                         </View>
 
                         {/* Buttons */}
@@ -273,6 +359,36 @@ const styles = StyleSheet.create({
     daysGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+    },
+    monthsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    monthCell: {
+        width: '30%',
+        paddingVertical: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 10,
+        backgroundColor: Colors.background.primary,
+    },
+    monthCellSelected: {
+        backgroundColor: Colors.primary,
+    },
+    monthCellDisabled: {
+        opacity: 0.4,
+    },
+    monthCellText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.text.primary,
+    },
+    monthCellTextSelected: {
+        color: Colors.white,
+    },
+    monthCellTextDisabled: {
+        color: Colors.text.light,
     },
     dayCell: {
         width: '14.28%',

@@ -1,3 +1,4 @@
+import { CalendarDatePicker } from '@/components/ui/calendar-date-picker';
 import { Colors } from '@/constants/Colors';
 import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -76,7 +77,6 @@ export default function AnalyticsScreen() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [rangeStartDate, setRangeStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
     const [rangeEndDate, setRangeEndDate] = useState(new Date());
-    const [selectingRangeStart, setSelectingRangeStart] = useState(true);
 
     // Refresh transactions when screen comes into focus
     useFocusEffect(
@@ -85,113 +85,11 @@ export default function AnalyticsScreen() {
         }, [])
     );
 
-    // Navigate to previous month
-    const goToPreviousMonth = () => {
-        setSelectedDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() - 1);
-            return newDate;
-        });
-    };
-
-    // Navigate to next month
-    const goToNextMonth = () => {
-        setSelectedDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() + 1);
-            return newDate;
-        });
-    };
-
-    // Navigate to previous day
-    const goToPreviousDay = () => {
-        setSelectedDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setDate(newDate.getDate() - 1);
-            return newDate;
-        });
-    };
-
-    // Navigate to next day
-    const goToNextDay = () => {
-        setSelectedDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setDate(newDate.getDate() + 1);
-            return newDate;
-        });
-    };
-
-    // Check if we can go to next month (don't go beyond current month)
-    const canGoNext = () => {
+    const today = useMemo(() => {
         const now = new Date();
-        const currentYearMonth = now.getFullYear() * 12 + now.getMonth();
-        const selectedYearMonth = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
-        return selectedYearMonth < currentYearMonth;
-    };
-
-    // Check if we can go to next day (don't go beyond today)
-    const canGoNextDay = () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const selected = new Date(selectedDate);
-        selected.setHours(0, 0, 0, 0);
-        return selected < today;
-    };
-
-    // Handle range date selection
-    const handleRangeDateSelect = (date: Date) => {
-        if (selectingRangeStart) {
-            setRangeStartDate(date);
-            setSelectingRangeStart(false);
-        } else {
-            if (date < rangeStartDate) {
-                setRangeEndDate(rangeStartDate);
-                setRangeStartDate(date);
-            } else {
-                setRangeEndDate(date);
-            }
-            setSelectingRangeStart(true);
-        }
-    };
-
-    // Navigate range dates
-    const goToPreviousRange = () => {
-        const daysDiff = Math.ceil((rangeEndDate.getTime() - rangeStartDate.getTime()) / (1000 * 60 * 60 * 24));
-        const newStart = new Date(rangeStartDate);
-        newStart.setDate(newStart.getDate() - daysDiff);
-        const newEnd = new Date(rangeEndDate);
-        newEnd.setDate(newEnd.getDate() - daysDiff);
-        setRangeStartDate(newStart);
-        setRangeEndDate(newEnd);
-    };
-
-    const goToNextRange = () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (rangeEndDate < today) {
-            const daysDiff = Math.ceil((rangeEndDate.getTime() - rangeStartDate.getTime()) / (1000 * 60 * 60 * 24));
-            const newStart = new Date(rangeStartDate);
-            newStart.setDate(newStart.getDate() + daysDiff);
-            const newEnd = new Date(rangeEndDate);
-            newEnd.setDate(newEnd.getDate() + daysDiff);
-            
-            if (newEnd <= today) {
-                setRangeStartDate(newStart);
-                setRangeEndDate(newEnd);
-            } else {
-                setRangeStartDate(newStart);
-                setRangeEndDate(today);
-            }
-        }
-    };
-
-    const canGoNextRange = () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const end = new Date(rangeEndDate);
-        end.setHours(0, 0, 0, 0);
-        return end < today;
-    };
+        now.setHours(23, 59, 59, 999);
+        return now;
+    }, []);
 
     // Calculate analytics data
     const analytics = useMemo(() => {
@@ -519,28 +417,45 @@ export default function AnalyticsScreen() {
                 </View>
 
                 <View style={styles.dateNavigator}>
-                    <TouchableOpacity 
-                        onPress={viewType === 'month' ? goToPreviousMonth : viewType === 'day' ? goToPreviousDay : goToPreviousRange}
-                        style={styles.navButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="chevron-back" size={24} color="#000000" />
-                    </TouchableOpacity>
-                    <Text style={styles.monthText}>
-                        {getMonthYear()}
-                    </Text>
-                    <TouchableOpacity 
-                        onPress={viewType === 'month' ? goToNextMonth : viewType === 'day' ? goToNextDay : goToNextRange}
-                        style={[styles.navButton, !((viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange())) && styles.navButtonDisabled]}
-                        disabled={!((viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange()))}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons 
-                            name="chevron-forward" 
-                            size={24} 
-                            color={(viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange()) ? '#000000' : Colors.text.light} 
+                    {viewType === 'range' ? (
+                        <View style={styles.rangeDateContainer}>
+                            <View style={styles.rangeDateItem}>
+                                <Text style={styles.rangeDateLabel}>Start date</Text>
+                                <CalendarDatePicker
+                                    date={rangeStartDate}
+                                    onDateChange={(date) => {
+                                        setRangeStartDate(date);
+                                        if (date > rangeEndDate) {
+                                            setRangeEndDate(date);
+                                        }
+                                    }}
+                                    maximumDate={today}
+                                />
+                            </View>
+                            <View style={styles.rangeDateItem}>
+                                <Text style={styles.rangeDateLabel}>End date</Text>
+                                <CalendarDatePicker
+                                    date={rangeEndDate}
+                                    onDateChange={(date) => {
+                                        setRangeEndDate(date);
+                                        if (date < rangeStartDate) {
+                                            setRangeStartDate(date);
+                                        }
+                                    }}
+                                    maximumDate={today}
+                                />
+                            </View>
+                        </View>
+                    ) : (
+                        <CalendarDatePicker
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                            maximumDate={today}
+                            mode={viewType === 'month' ? 'month-year' : 'date'}
                         />
-                    </TouchableOpacity>
+                    )}
+
+                    <Text style={styles.monthText}>{getMonthYear()}</Text>
                 </View>
 
                 {/* Income & Expense Cards */}
@@ -593,8 +508,8 @@ export default function AnalyticsScreen() {
                     )}
                 </View>
 
-                {/* Income vs Expense Chart - Only show for month and range view */}
-                {(viewType === 'month' || viewType === 'range') && (
+                {/* Income vs Expense Chart - Only show for month view */}
+                {(viewType === 'month') && (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Income vs Expense</Text>
 
@@ -697,32 +612,32 @@ const styles = StyleSheet.create({
         color: Colors.text.primary,
     },
     dateNavigator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        alignItems: 'stretch',
         backgroundColor: '#F3F4F6',
         borderRadius: 12,
-        paddingVertical: 12,
+        paddingVertical: 14,
         paddingHorizontal: 16,
         marginBottom: 16,
-    },
-    navButton: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 22,
-        backgroundColor: Colors.white,
-    },
-    navButtonDisabled: {
-        opacity: 0.3,
+        gap: 12,
     },
     monthText: {
         fontSize: 16,
         fontWeight: '700',
         color: '#000000',
-        textAlign: 'center',
+        textAlign: 'left',
+    },
+    rangeDateContainer: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    rangeDateItem: {
         flex: 1,
+        gap: 6,
+    },
+    rangeDateLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.text.secondary,
     },
     scrollView: {
         flex: 1,
