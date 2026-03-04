@@ -132,7 +132,7 @@ export default function SignUpScreen() {
             Alert.alert(
                 'Success!',
                 'Account created successfully. Please check your email to verify your account.',
-                [{ text: 'OK', onPress: () => router.replace('/(home)') }]
+                [{ text: 'OK', onPress: () => router.replace('/sign-in') }]
             );
         }
     };

@@ -1,3 +1,4 @@
+import { CalendarDatePicker } from '@/components/ui/calendar-date-picker';
 import { Dropdown } from '@/components/ui/dropdown';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,7 +6,6 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -40,7 +40,6 @@ export default function AddTransactionScreen() {
     const [amount, setAmount] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [date, setDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -59,17 +58,6 @@ export default function AddTransactionScreen() {
         const filteredCategories = categories.filter(c => c.type === newType);
         if (filteredCategories.length > 0) {
             setSelectedCategory(filteredCategories[0]);
-        }
-    };
-
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        // On Android, close the picker after selection
-        // On iOS, keep it open (it has a Done button)
-        if (Platform.OS === 'android') {
-            setShowDatePicker(false);
-        }
-        if (selectedDate) {
-            setDate(selectedDate);
         }
     };
 
@@ -122,14 +110,6 @@ export default function AddTransactionScreen() {
             // Navigate back to home page
             router.push('/(home)');
         }
-    };
-
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        });
     };
 
     const currentCategories = categories.filter(c => c.type === type);
@@ -258,22 +238,11 @@ export default function AddTransactionScreen() {
                             }}
                         />
                     ) : (
-                        <>
-                            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                                <Ionicons name="calendar-outline" size={20} color={Colors.text.secondary} />
-                                <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
-                            </TouchableOpacity>
-
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={date}
-                                    mode="date"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={handleDateChange}
-                                    maximumDate={new Date()}
-                                />
-                            )}
-                        </>
+                        <CalendarDatePicker
+                            date={date}
+                            onDateChange={setDate}
+                            maximumDate={new Date()}
+                        />
                     )}
                 </View>
 
@@ -398,19 +367,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 32,
         fontWeight: '700',
-        color: Colors.text.primary,
-    },
-    dateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.background.primary,
-        borderRadius: 12,
-        padding: 16,
-        gap: 12,
-    },
-    dateButtonText: {
-        fontSize: 15,
-        fontWeight: '500',
         color: Colors.text.primary,
     },
     notesInput: {

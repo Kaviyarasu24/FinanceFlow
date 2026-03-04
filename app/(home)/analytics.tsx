@@ -72,8 +72,11 @@ export default function AnalyticsScreen() {
     const { categories } = useCategories();
 
     // State for view type and selected date
-    const [viewType, setViewType] = useState<'month' | 'day'>('month');
+    const [viewType, setViewType] = useState<'month' | 'day' | 'range'>('month');
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [rangeStartDate, setRangeStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
+    const [rangeEndDate, setRangeEndDate] = useState(new Date());
+    const [selectingRangeStart, setSelectingRangeStart] = useState(true);
 
     // Refresh transactions when screen comes into focus
     useFocusEffect(
@@ -133,6 +136,61 @@ export default function AnalyticsScreen() {
         const selected = new Date(selectedDate);
         selected.setHours(0, 0, 0, 0);
         return selected < today;
+    };
+
+    // Handle range date selection
+    const handleRangeDateSelect = (date: Date) => {
+        if (selectingRangeStart) {
+            setRangeStartDate(date);
+            setSelectingRangeStart(false);
+        } else {
+            if (date < rangeStartDate) {
+                setRangeEndDate(rangeStartDate);
+                setRangeStartDate(date);
+            } else {
+                setRangeEndDate(date);
+            }
+            setSelectingRangeStart(true);
+        }
+    };
+
+    // Navigate range dates
+    const goToPreviousRange = () => {
+        const daysDiff = Math.ceil((rangeEndDate.getTime() - rangeStartDate.getTime()) / (1000 * 60 * 60 * 24));
+        const newStart = new Date(rangeStartDate);
+        newStart.setDate(newStart.getDate() - daysDiff);
+        const newEnd = new Date(rangeEndDate);
+        newEnd.setDate(newEnd.getDate() - daysDiff);
+        setRangeStartDate(newStart);
+        setRangeEndDate(newEnd);
+    };
+
+    const goToNextRange = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (rangeEndDate < today) {
+            const daysDiff = Math.ceil((rangeEndDate.getTime() - rangeStartDate.getTime()) / (1000 * 60 * 60 * 24));
+            const newStart = new Date(rangeStartDate);
+            newStart.setDate(newStart.getDate() + daysDiff);
+            const newEnd = new Date(rangeEndDate);
+            newEnd.setDate(newEnd.getDate() + daysDiff);
+            
+            if (newEnd <= today) {
+                setRangeStartDate(newStart);
+                setRangeEndDate(newEnd);
+            } else {
+                setRangeStartDate(newStart);
+                setRangeEndDate(today);
+            }
+        }
+    };
+
+    const canGoNextRange = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(rangeEndDate);
+        end.setHours(0, 0, 0, 0);
+        return end < today;
     };
 
     // Calculate analytics data
@@ -218,7 +276,7 @@ export default function AnalyticsScreen() {
                 monthlyData,
                 categoryBreakdown,
             };
-        } else {
+        } else if (viewType === 'day') {
             // Day view logic
             const selectedYear = selectedDate.getFullYear();
             const selectedMonth = selectedDate.getMonth();
@@ -304,14 +362,103 @@ export default function AnalyticsScreen() {
                 monthlyData: dailyData,
                 categoryBreakdown,
             };
+        } else {
+            // Range view logic
+            const rangeTrans = transactions.filter(t => {
+                const date = new Date(t.date);
+                const start = new Date(rangeStartDate);
+                const end = new Date(rangeEndDate);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                return date >= start && date <= end;
+            });
+
+            const income = rangeTrans
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const expense = rangeTrans
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+            const savings = income - expense;
+
+            // Daily breakdown for the range
+            const rangeData = [];
+            const currentDate = new Date(rangeStartDate);
+            while (currentDate <= rangeEndDate) {
+                const dayTrans = transactions.filter(t => {
+                    const date = new Date(t.date);
+                    return date.getDate() === currentDate.getDate() &&
+                        date.getMonth() === currentDate.getMonth() &&
+                        date.getFullYear() === currentDate.getFullYear();
+                });
+
+                const dayIncome = dayTrans
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const dayExpense = dayTrans
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                rangeData.push({
+                    month: currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+                    income: dayIncome,
+                    expense: dayExpense,
+                });
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            // Category breakdown (expenses only)
+            const categoryTotals: any = {};
+            let totalExpense = 0;
+            rangeTrans
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    if (!categoryTotals[t.category_id]) {
+                        categoryTotals[t.category_id] = 0;
+                    }
+                    categoryTotals[t.category_id] += t.amount;
+                    totalExpense += t.amount;
+                });
+
+            const categoryBreakdown = Object.entries(categoryTotals)
+                .map(([id, amount]: [string, any]) => {
+                    const category = categories.find(c => c.id === id);
+                    return {
+                        id,
+                        name: category?.name || 'Unknown',
+                        icon: category?.icon || 'help-circle-outline',
+                        amount,
+                        percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+                    };
+                })
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 5);
+
+            return {
+                income,
+                expense,
+                savingsRate,
+                savings,
+                monthlyData: rangeData,
+                categoryBreakdown,
+            };
         }
-    }, [transactions, categories, selectedDate, viewType]);
+    }, [transactions, categories, selectedDate, viewType, rangeStartDate, rangeEndDate]);
 
     const getMonthYear = () => {
         if (viewType === 'month') {
             return selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        } else {
+        } else if (viewType === 'day') {
             return selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        } else {
+            const startStr = rangeStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const endStr = rangeEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return `${startStr} - ${endStr}`;
         }
     };
 
@@ -360,11 +507,20 @@ export default function AnalyticsScreen() {
                             Daily
                         </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setViewType('range')}
+                        style={[styles.toggleButton, viewType === 'range' && styles.toggleButtonActive]}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.toggleButtonText, viewType === 'range' && styles.toggleButtonTextActive]}>
+                            Range
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.dateNavigator}>
                     <TouchableOpacity 
-                        onPress={viewType === 'month' ? goToPreviousMonth : goToPreviousDay}
+                        onPress={viewType === 'month' ? goToPreviousMonth : viewType === 'day' ? goToPreviousDay : goToPreviousRange}
                         style={styles.navButton}
                         activeOpacity={0.7}
                     >
@@ -374,15 +530,15 @@ export default function AnalyticsScreen() {
                         {getMonthYear()}
                     </Text>
                     <TouchableOpacity 
-                        onPress={viewType === 'month' ? goToNextMonth : goToNextDay}
-                        style={[styles.navButton, !((viewType === 'month' ? canGoNext() : canGoNextDay())) && styles.navButtonDisabled]}
-                        disabled={!((viewType === 'month' ? canGoNext() : canGoNextDay()))}
+                        onPress={viewType === 'month' ? goToNextMonth : viewType === 'day' ? goToNextDay : goToNextRange}
+                        style={[styles.navButton, !((viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange())) && styles.navButtonDisabled]}
+                        disabled={!((viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange()))}
                         activeOpacity={0.7}
                     >
                         <Ionicons 
                             name="chevron-forward" 
                             size={24} 
-                            color={(viewType === 'month' ? canGoNext() : canGoNextDay()) ? '#000000' : Colors.text.light} 
+                            color={(viewType === 'month' ? canGoNext() : viewType === 'day' ? canGoNextDay() : canGoNextRange()) ? '#000000' : Colors.text.light} 
                         />
                     </TouchableOpacity>
                 </View>
@@ -395,7 +551,7 @@ export default function AnalyticsScreen() {
                             <Text style={styles.statLabel}>Income</Text>
                         </View>
                         <Text style={styles.statValue}>{formatAmount(analytics.income)}</Text>
-                        <Text style={styles.statChange}>This {viewType === 'month' ? 'month' : 'day'}</Text>
+                        <Text style={styles.statChange}>This {viewType === 'month' ? 'month' : viewType === 'day' ? 'day' : 'period'}</Text>
                     </View>
 
                     <View style={styles.statCard}>
@@ -404,7 +560,7 @@ export default function AnalyticsScreen() {
                             <Text style={styles.statLabel}>Expense</Text>
                         </View>
                         <Text style={styles.statValue}>{formatAmount(analytics.expense)}</Text>
-                        <Text style={styles.statChangeNegative}>This {viewType === 'month' ? 'month' : 'day'}</Text>
+                        <Text style={styles.statChangeNegative}>This {viewType === 'month' ? 'month' : viewType === 'day' ? 'day' : 'period'}</Text>
                     </View>
                 </View>
 
@@ -433,12 +589,12 @@ export default function AnalyticsScreen() {
                             </View>
                         </View>
                     ) : (
-                        <Text style={styles.emptyText}>No expense data for this {viewType === 'month' ? 'month' : 'day'}</Text>
+                        <Text style={styles.emptyText}>No expense data for this {viewType === 'month' ? 'month' : viewType === 'day' ? 'day' : 'period'}</Text>
                     )}
                 </View>
 
-                {/* Income vs Expense Chart - Only show for month view */}
-                {viewType === 'month' && (
+                {/* Income vs Expense Chart - Only show for month and range view */}
+                {(viewType === 'month' || viewType === 'range') && (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Income vs Expense</Text>
 
@@ -500,7 +656,7 @@ export default function AnalyticsScreen() {
                         <Text style={styles.savingsLabel}>Savings Rate</Text>
                         <Text style={styles.savingsValue}>{analytics.savingsRate.toFixed(1)}%</Text>
                         <Text style={styles.savingsSubtext}>
-                            You are {analytics.savings >= 0 ? 'saving' : 'overspending'} {formatAmount(Math.abs(analytics.savings))} this {viewType === 'month' ? 'month' : 'day'}
+                            You are {analytics.savings >= 0 ? 'saving' : 'overspending'} {formatAmount(Math.abs(analytics.savings))} this {viewType === 'month' ? 'month' : viewType === 'day' ? 'day' : 'period'}
                         </Text>
                     </View>
                     <View style={styles.savingsIcon}>
