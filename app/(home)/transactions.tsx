@@ -27,7 +27,7 @@ export default function TransactionsScreen() {
         deleteTransaction,
         refreshTransactions,
     } = useTransactions({ initialFetchMode: 'all' });
-    const { categories } = useCategories();
+    const { categories, fetchCategories } = useCategories();
     const { formatAmount } = useCurrency();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<TransactionType>('all');
@@ -52,7 +52,8 @@ export default function TransactionsScreen() {
     useFocusEffect(
         useCallback(() => {
             refreshTransactions();
-        }, [refreshTransactions])
+            fetchCategories();
+        }, [refreshTransactions, fetchCategories])
     );
 
     const onRefresh = async () => {

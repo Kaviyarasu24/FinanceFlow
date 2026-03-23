@@ -7,8 +7,8 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -32,7 +32,7 @@ interface Category {
 
 export default function AddTransactionScreen() {
     const { user } = useAuth();
-    const { categories, loading: categoriesLoading } = useCategories();
+    const { categories, loading: categoriesLoading, fetchCategories } = useCategories();
     const { addTransaction, updateTransaction, fetchTransactions } = useTransactions();
     const { getCurrencySymbol } = useCurrency();
     const tabBarHeight = useBottomTabBarHeight();
@@ -166,6 +166,13 @@ export default function AddTransactionScreen() {
     };
 
     const currentCategories = categories.filter(c => c.type === type);
+
+    // Ensure latest custom categories are available when returning to this screen.
+    useFocusEffect(
+        useCallback(() => {
+            fetchCategories();
+        }, [fetchCategories])
+    );
 
     if (categoriesLoading) {
         return (
