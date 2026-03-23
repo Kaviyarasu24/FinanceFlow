@@ -37,9 +37,6 @@ export function useSettings() {
         if (!user) return { error: 'No user logged in' };
 
         try {
-            console.log('updateSettings called with:', updates);
-            console.log('User ID:', user.id);
-
             // Use upsert to insert or update
             const { data, error } = await supabase
                 .from('user_settings')
@@ -56,13 +53,10 @@ export function useSettings() {
                 .select()
                 .single();
 
-            console.log('Upsert result:', { data, error });
-
             if (error) throw error;
             setSettings(data);
             return { data, error: null };
         } catch (err: any) {
-            console.error('updateSettings error:', err);
             return { data: null, error: err.message };
         }
     };

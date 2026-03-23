@@ -33,7 +33,7 @@ export default function SignUpScreen() {
         if (!authLoading && user) {
             router.replace('/(home)');
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, router]);
 
     const [nameError, setNameError] = useState('');
     const [emailError, setEmailError] = useState('');

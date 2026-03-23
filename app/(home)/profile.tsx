@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -24,18 +24,7 @@ export default function ProfileScreen() {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    // Refresh profile when screen comes into focus
-    useFocusEffect(
-        React.useCallback(() => {
-            fetchProfile();
-        }, [user])
-    );
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         if (!user) return;
 
         setLoading(true);
@@ -49,7 +38,18 @@ export default function ProfileScreen() {
             setProfile(data);
         }
         setLoading(false);
-    };
+    }, [user]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
+
+    // Refresh profile when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [fetchProfile])
+    );
 
     const handleLogout = () => {
         Alert.alert(
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
                         try {
                             await signOut();
                             router.replace('/sign-in');
-                        } catch (error) {
+                        } catch {
                             Alert.alert('Error', 'Failed to logout. Please try again.');
                         }
                     },

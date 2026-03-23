@@ -51,7 +51,7 @@ export default function AddTransactionScreen() {
                 setSelectedCategory(expenseCategories[0]);
             }
         }
-    }, [categories]);
+    }, [categories, selectedCategory]);
 
     const handleTypeChange = (newType: TransactionType) => {
         setType(newType);

@@ -32,7 +32,7 @@ export default function SignInScreen() {
         if (!authLoading && user) {
             router.replace('/(home)');
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, router]);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -198,7 +198,7 @@ export default function SignInScreen() {
 
                     {/* Sign Up Link */}
                     <View style={styles.signUpContainer}>
-                        <Text style={styles.signUpText}>Don't have an account? </Text>
+                        <Text style={styles.signUpText}>Do not have an account? </Text>
                         <Link href="/sign-up" asChild>
                             <TouchableOpacity>
                                 <Text style={styles.signUpLink}>Sign Up</Text>

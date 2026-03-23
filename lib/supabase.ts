@@ -4,8 +4,22 @@ import { createClient } from '@supabase/supabase-js';
 import { Database } from './database.types';
 import { Platform } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey =
+    process.env.EXPO_PUBLIC_SUPABASE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl) {
+    throw new Error(
+        'Missing EXPO_PUBLIC_SUPABASE_URL. Add it to your .env file.'
+    );
+}
+
+if (!supabaseAnonKey) {
+    throw new Error(
+        'Missing Supabase key. Add EXPO_PUBLIC_SUPABASE_KEY or EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.'
+    );
+}
 
 // Create a storage adapter that works on both web and native
 const createStorageAdapter = () => {
@@ -42,6 +56,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         storage: createStorageAdapter(),
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
     },
 });

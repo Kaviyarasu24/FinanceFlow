@@ -83,7 +83,6 @@ export default function CustomCategoriesScreen() {
 
     const isIoniconName = (icon: string) => ICON_OPTIONS.includes(icon as any);
     const normalizeIcon = (icon: string) => (icon || '').trim() || 'ellipsis-horizontal';
-    const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
     // Extract first emoji/character using proper Unicode iteration
     const toSingleEmoji = (value: string) => {
         const trimmed = value.trim();

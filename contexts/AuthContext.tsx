@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signUp = async (email: string, password: string, fullName: string) => {
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
@@ -52,26 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (error) return { error };
-
-            // Create profile
-            if (data.user) {
-                const { error: profileError } = await supabase.from('profiles').insert({
-                    id: data.user.id,
-                    full_name: fullName,
-                    email: email,
-                });
-
-                // Create default user settings
-                const { error: settingsError } = await supabase.from('user_settings').insert({
-                    user_id: data.user.id,
-                    currency_code: 'USD',
-                    currency_symbol: '$',
-                });
-
-                if (profileError || settingsError) {
-                    return { error: profileError || settingsError };
-                }
-            }
 
             return { error: null };
         } catch (error) {

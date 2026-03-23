@@ -26,20 +26,7 @@ export default function HomeScreen() {
     const [profile, setProfile] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
 
-    useEffect(() => {
-        fetchProfile();
-        fetchCategories();
-    }, [user]);
-
-    // Refresh transactions and profile when screen comes into focus
-    useFocusEffect(
-        useCallback(() => {
-            fetchTransactions();
-            fetchProfile();
-        }, [user])
-    );
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         if (!user) return;
         const { data } = await supabase
             .from('profiles')
@@ -47,14 +34,27 @@ export default function HomeScreen() {
             .eq('id', user.id)
             .single();
         if (data) setProfile(data);
-    };
+    }, [user]);
 
-    const fetchCategories = async () => {
+    const fetchCategories = useCallback(async () => {
         const { data } = await supabase
             .from('categories')
             .select('*');
         if (data) setCategories(data);
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchProfile();
+        fetchCategories();
+    }, [fetchProfile, fetchCategories]);
+
+    // Refresh transactions and profile when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions();
+            fetchProfile();
+        }, [fetchTransactions, fetchProfile])
+    );
 
     // Calculate statistics from transactions
     const stats = useMemo(() => {

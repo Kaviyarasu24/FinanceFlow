@@ -30,7 +30,7 @@ export default function TransactionsScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchTransactions();
-        }, [])
+        }, [fetchTransactions])
     );
 
     const onRefresh = async () => {
@@ -61,8 +61,6 @@ export default function TransactionsScreen() {
         }
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
-
-    const normalizeDate = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     const filteredTransactions = transactions
         .filter((transaction) => {

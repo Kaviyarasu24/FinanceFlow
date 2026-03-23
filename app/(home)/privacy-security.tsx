@@ -79,7 +79,7 @@ export default function PrivacySecurityScreen() {
                         </Text>
                         <Text style={styles.contentSubheading}>Limitation of Liability</Text>
                         <Text style={styles.contentText}>
-                            FinanceFlow is provided "as is" without warranties. We are not liable for any indirect, incidental, or consequential damages arising from your use of the app.
+                            FinanceFlow is provided as is without warranties. We are not liable for any indirect, incidental, or consequential damages arising from your use of the app.
                         </Text>
                     </View>
                 </View>

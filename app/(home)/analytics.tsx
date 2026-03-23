@@ -34,15 +34,6 @@ interface ChartData {
     expense: number;
 }
 
-interface Analytics {
-    income: number;
-    expense: number;
-    savingsRate: number;
-    savings: number;
-    monthlyData: ChartData[];
-    categoryBreakdown: CategoryBreakdown[];
-}
-
 interface Transaction {
     date: string;
     type: 'income' | 'expense';
@@ -178,7 +169,7 @@ export default function AnalyticsScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchTransactions();
-        }, [])
+        }, [fetchTransactions])
     );
 
     const today = useMemo(() => {
@@ -442,7 +433,7 @@ export default function AnalyticsScreen() {
                                 No expenses {viewType === 'month' ? 'this month' : viewType === 'day' ? 'today' : 'in this period'}
                             </Text>
                             <Text style={styles.emptySubtext}>
-                                When you add expenses, they'll appear here
+                                When you add expenses, they will appear here
                             </Text>
                         </View>
                     )}

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -20,20 +20,14 @@ export default function PersonalInfoScreen() {
     const { user } = useAuth();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
-    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         if (!user) return;
 
         setLoading(true);
@@ -48,11 +42,14 @@ export default function PersonalInfoScreen() {
             setEmail(data.email || user.email || '');
         }
         setLoading(false);
-    };
+    }, [user]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
 
     const handleSave = async () => {
         if (!user) {
-            console.log('No user found');
             Alert.alert('Error', 'User not authenticated');
             return;
         }
@@ -68,13 +65,11 @@ export default function PersonalInfoScreen() {
             }
         }
 
-        console.log('Starting save...', { fullName, newPassword: !!newPassword });
         setSaving(true);
 
         try {
             // Update profile
-            console.log('Updating profile for user:', user.id);
-            const { data, error: profileError } = await supabase
+            const { error: profileError } = await supabase
                 .from('profiles')
                 .upsert(
                     {
@@ -86,10 +81,7 @@ export default function PersonalInfoScreen() {
                 )
                 .select();
 
-            console.log('Profile update result:', { data, error: profileError });
-
             if (profileError) {
-                console.error('Profile update error:', profileError);
                 Alert.alert('Error', `Failed to update profile: ${profileError.message}`);
                 setSaving(false);
                 return;
@@ -97,22 +89,18 @@ export default function PersonalInfoScreen() {
 
             // Update password if provided
             if (newPassword) {
-                console.log('Updating password...');
                 const { error: passwordError } = await supabase.auth.updateUser({
                     password: newPassword,
                 });
 
                 if (passwordError) {
-                    console.error('Password update error:', passwordError);
                     Alert.alert('Error', `Failed to update password: ${passwordError.message}`);
                     setSaving(false);
                     return;
                 }
-                console.log('Password updated successfully');
             }
 
             setSaving(false);
-            console.log('Save completed successfully');
 
             // Navigate back immediately - profile screen will auto-refresh
             router.replace('/(home)/profile');

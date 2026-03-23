@@ -38,12 +38,18 @@ A beautiful, modern React Native mobile application for managing personal financ
 npm install
 ```
 
-2. Start the development server:
+2. Configure environment variables in `.env`:
+```bash
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_KEY=your_supabase_publishable_or_anon_key
+```
+
+3. Start the development server:
 ```bash
 npm start
 ```
 
-3. Run on specific platform:
+4. Run on specific platform:
 ```bash
 npm run web      # Web browser
 npm run android  # Android emulator/device

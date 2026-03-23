@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/lib/database.types';
 
@@ -11,7 +11,7 @@ export function useTransactions() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
@@ -28,9 +28,9 @@ export function useTransactions() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const addTransaction = async (transaction: TransactionInsert) => {
+    const addTransaction = useCallback(async (transaction: TransactionInsert) => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -46,9 +46,9 @@ export function useTransactions() {
         } catch (err: any) {
             return { data: null, error: err.message };
         }
-    };
+    }, []);
 
-    const updateTransaction = async (id: string, updates: TransactionUpdate) => {
+    const updateTransaction = useCallback(async (id: string, updates: TransactionUpdate) => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -67,9 +67,9 @@ export function useTransactions() {
         } catch (err: any) {
             return { data: null, error: err.message };
         }
-    };
+    }, []);
 
-    const deleteTransaction = async (id: string) => {
+    const deleteTransaction = useCallback(async (id: string) => {
         try {
             const { error } = await supabase
                 .from('transactions')
@@ -84,9 +84,9 @@ export function useTransactions() {
         } catch (err: any) {
             return { error: err.message };
         }
-    };
+    }, []);
 
-    const getTransactionsByDateRange = async (startDate: string, endDate: string) => {
+    const getTransactionsByDateRange = useCallback(async (startDate: string, endDate: string) => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -100,11 +100,11 @@ export function useTransactions() {
         } catch (err: any) {
             return { data: [], error: err.message };
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchTransactions();
-    }, []);
+    }, [fetchTransactions]);
 
     return {
         transactions,

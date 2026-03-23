@@ -28,7 +28,7 @@ export default function ForgotPasswordScreen() {
         if (!authLoading && user) {
             router.replace('/(home)');
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, router]);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,7 +74,7 @@ export default function ForgotPasswordScreen() {
                     </View>
                     <Text style={styles.successTitle}>Check Your Email</Text>
                     <Text style={styles.successMessage}>
-                        We've sent password reset instructions to {email}
+                        We have sent password reset instructions to {email}
                     </Text>
                     <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                         <Text style={styles.backButtonText}>Back to Sign In</Text>
@@ -101,7 +101,7 @@ export default function ForgotPasswordScreen() {
                     </View>
                     <Text style={styles.title}>Forgot Password?</Text>
                     <Text style={styles.subtitle}>
-                        Enter your email address and we'll send you instructions to reset your password
+                        Enter your email address and we will send you instructions to reset your password
                     </Text>
                 </View>
 
