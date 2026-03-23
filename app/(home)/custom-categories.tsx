@@ -18,9 +18,56 @@ import {
 } from 'react-native';
 
 const ICON_OPTIONS_BASE = [
-    'restaurant', 'cart', 'car', 'game-controller', 'flash', 'fitness', 'ellipsis-horizontal',
-    'briefcase', 'laptop', 'trending-up', 'home', 'medical', 'airplane', 'beer', 'gift',
-    'book', 'tv', 'camera', 'music-note', 'utensils', 'shopping-bag', 'bus', 'bed'
+    'ellipsis-horizontal',
+    'restaurant',
+    'fast-food',
+    'cafe',
+    'pizza',
+    'beer',
+    'cart',
+    'bag-handle',
+    'car',
+    'car-sport',
+    'bus',
+    'train',
+    'bicycle',
+    'walk',
+    'airplane',
+    'boat',
+    'home',
+    'bed',
+    'flash',
+    'bulb',
+    'medical',
+    'fitness',
+    'heart',
+    'briefcase',
+    'wallet',
+    'card',
+    'cash',
+    'trending-up',
+    'trending-down',
+    'laptop',
+    'phone-portrait',
+    'camera',
+    'tv',
+    'game-controller',
+    'film',
+    'musical-notes',
+    'book',
+    'school',
+    'gift',
+    'construct',
+    'hammer',
+    'shirt',
+    'paw',
+    'leaf',
+    'flower',
+    'trophy',
+    'football',
+    'basketball',
+    'barbell',
+    'globe'
 ] as const;
 
 const ICON_OPTIONS = Array.from(new Set(ICON_OPTIONS_BASE)).filter(
@@ -38,6 +85,18 @@ const COLOR_OPTIONS = [
     '#6366F1', // Indigo
     '#14B8A6', // Teal
     '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#22C55E', // Green
+    '#0EA5E9', // Sky
+    '#2563EB', // Royal Blue
+    '#7C3AED', // Violet
+    '#D946EF', // Fuchsia
+    '#E11D48', // Rose
+    '#B91C1C', // Dark Red
+    '#A16207', // Dark Amber
+    '#334155', // Slate
+    '#6B7280', // Gray
+    '#111827', // Near Black
 ];
 
 export default function CustomCategoriesScreen() {
@@ -55,7 +114,6 @@ export default function CustomCategoriesScreen() {
     const [categoryName, setCategoryName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('ellipsis-horizontal');
     const [selectedColor, setSelectedColor] = useState('#EF4444');
-    const [iconInput, setIconInput] = useState('');
     const [saving, setSaving] = useState(false);
 
     const customCategories = getCustomCategories(selectedType);
@@ -82,33 +140,20 @@ export default function CustomCategoriesScreen() {
             setCategoryName('');
             setSelectedIcon('ellipsis-horizontal');
             setSelectedColor('#EF4444');
-            setIconInput('');
             setShowModal(false);
             Alert.alert('Success', 'Category added successfully');
         }
     };
 
-    const isIoniconName = (icon: string) => ICON_OPTIONS.includes(icon as any);
+    const isIoniconName = (icon: string) => icon in (Ionicons as any).glyphMap;
     const normalizeIcon = (icon: string) => (icon || '').trim() || 'ellipsis-horizontal';
-    // Extract first emoji/character using proper Unicode iteration
-    const toSingleEmoji = (value: string) => {
-        const trimmed = value.trim();
-        if (!trimmed) return '';
-        // Use Array.from with proper spread to handle complex Unicode
-        const chars = [...trimmed];
-        return chars[0] || '';
-    };
 
     const renderCategoryIcon = (icon: string, size: number) => {
         const normalized = normalizeIcon(icon);
         if (isIoniconName(normalized)) {
             return <Ionicons name={normalized as any} size={size} color={Colors.white} />;
         }
-        return (
-            <Text style={[styles.emojiIcon, { fontSize: size }]}>
-                {normalized}
-            </Text>
-        );
+        return <Ionicons name="ellipsis-horizontal" size={size} color={Colors.white} />;
     };
 
     const handleDeleteCategory = (categoryId: string, categoryName: string) => {
@@ -228,7 +273,6 @@ export default function CustomCategoriesScreen() {
                     setCategoryName('');
                     setSelectedIcon('ellipsis-horizontal');
                     setSelectedColor('#EF4444');
-                    setIconInput('');
                     setShowModal(true);
                 }}
             >
@@ -279,7 +323,6 @@ export default function CustomCategoriesScreen() {
                     setCategoryName('');
                     setSelectedIcon('ellipsis-horizontal');
                     setSelectedColor('#EF4444');
-                    setIconInput('');
                     setShowModal(true);
                 }}
             >
@@ -349,24 +392,7 @@ export default function CustomCategoriesScreen() {
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionLabel}>Icon</Text>
                                 </View>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Type an emoji"
-                                    placeholderTextColor={Colors.text.light}
-                                    value={iconInput}
-                                    onChangeText={(value) => {
-                                        const emoji = toSingleEmoji(value);
-                                        setIconInput(emoji);
-                                        if (emoji) {
-                                            setSelectedIcon(emoji);
-                                        }
-                                    }}
-                                />
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    contentContainerStyle={styles.iconGrid}
-                                >
+                                <View style={styles.iconGrid}>
                                     {ICON_OPTIONS.map((icon) => (
                                         <TouchableOpacity
                                             key={icon}
@@ -376,13 +402,12 @@ export default function CustomCategoriesScreen() {
                                             ]}
                                             onPress={() => {
                                                 setSelectedIcon(icon);
-                                                setIconInput('');
                                             }}
                                         >
-                                            <Ionicons name={icon as any} size={28} color={Colors.text.primary} />
+                                            <Ionicons name={icon as any} size={22} color={Colors.text.primary} />
                                         </TouchableOpacity>
                                     ))}
-                                </ScrollView>
+                                </View>
                             </View>
 
                             {/* Color Selector */}
@@ -390,11 +415,7 @@ export default function CustomCategoriesScreen() {
                                 <View style={styles.sectionHeader}>
                                     <Text style={styles.sectionLabel}>Color</Text>
                                 </View>
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    contentContainerStyle={styles.colorGrid}
-                                >
+                                <View style={styles.colorGrid}>
                                     {COLOR_OPTIONS.map((color) => (
                                         <TouchableOpacity
                                             key={color}
@@ -410,7 +431,7 @@ export default function CustomCategoriesScreen() {
                                             )}
                                         </TouchableOpacity>
                                     ))}
-                                </ScrollView>
+                                </View>
                             </View>
 
                             <View style={styles.bottomSpacing} />
@@ -432,9 +453,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: Colors.primary,
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
+        paddingHorizontal: 16,
+        paddingTop: 50,
+        paddingBottom: 12,
     },
     backButton: {
         width: 40,
@@ -454,25 +475,25 @@ const styles = StyleSheet.create({
     },
     typeSelector: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 8,
     },
     typeButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12,
+        paddingVertical: 10,
         borderRadius: 8,
         backgroundColor: Colors.white,
-        gap: 8,
+        gap: 6,
     },
     typeButtonActive: {
         backgroundColor: Colors.primary,
     },
     typeButtonText: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
         color: Colors.text.secondary,
     },
@@ -483,16 +504,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginHorizontal: 20,
-        marginVertical: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        marginHorizontal: 16,
+        marginVertical: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
         backgroundColor: Colors.primary,
         borderRadius: 8,
-        gap: 8,
+        gap: 6,
     },
     topAddButtonText: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: '600',
         color: Colors.white,
     },
@@ -520,22 +541,22 @@ const styles = StyleSheet.create({
         color: Colors.text.secondary,
     },
     categoriesContainer: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
     },
     categoryCard: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        padding: 16,
-        gap: 12,
+        borderRadius: 10,
+        padding: 12,
+        gap: 10,
     },
     categoryIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: 40,
+        height: 40,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -543,7 +564,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     categoryName: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
         color: Colors.text.primary,
     },
@@ -553,10 +574,10 @@ const styles = StyleSheet.create({
     addButton: {
         position: 'absolute',
         bottom: 30,
-        right: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        right: 16,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
         backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
@@ -581,8 +602,8 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         backgroundColor: Colors.background.primary,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         height: '85%',
         borderBottomWidth: 0,
         paddingBottom: 8,
@@ -591,9 +612,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 12,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 10,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
     },
@@ -602,12 +623,12 @@ const styles = StyleSheet.create({
         color: Colors.text.secondary,
     },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         color: Colors.text.primary,
     },
     modalSaveButton: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
         color: Colors.primary,
     },
@@ -619,8 +640,8 @@ const styles = StyleSheet.create({
         flexGrow: 1,
     },
     section: {
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
     },
@@ -630,57 +651,55 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     sectionLabel: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
         color: Colors.text.secondary,
-        marginBottom: 8,
+        marginBottom: 6,
     },
     input: {
         backgroundColor: Colors.white,
         borderRadius: 8,
         paddingHorizontal: 12,
-        paddingVertical: 12,
-        fontSize: 15,
+        paddingVertical: 10,
+        fontSize: 14,
         color: Colors.text.primary,
         borderWidth: 1,
         borderColor: Colors.border,
     },
     previewCard: {
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: 10,
+        padding: 14,
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
     },
     previewIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 16,
+        width: 54,
+        height: 54,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    emojiIcon: {
-        color: Colors.white,
-    },
     previewText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
         color: Colors.text.primary,
     },
     iconGrid: {
         flexDirection: 'row',
-        gap: 12,
-        paddingVertical: 4,
-        marginTop: 12,
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingVertical: 6,
+        marginTop: 8,
     },
     iconOption: {
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         backgroundColor: Colors.white,
-        borderRadius: 22,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: Colors.border,
     },
     iconOptionSelected: {
@@ -689,17 +708,18 @@ const styles = StyleSheet.create({
     },
     colorGrid: {
         flexDirection: 'row',
-        gap: 12,
-        paddingVertical: 4,
-        marginTop: 12,
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingVertical: 6,
+        marginTop: 8,
     },
     colorOption: {
-        width: 44,
-        height: 44,
+        width: 38,
+        height: 38,
         borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 3,
+        borderWidth: 2,
         borderColor: 'transparent',
     },
     colorOptionSelected: {

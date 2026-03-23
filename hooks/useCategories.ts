@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 
 type Category = Database['public']['Tables']['categories']['Row'];
@@ -18,6 +19,11 @@ export function useCategories() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const normalizeIcon = useCallback((icon?: string | null) => {
+        if (!icon) return 'ellipsis-horizontal';
+        return icon in (Ionicons as any).glyphMap ? icon : 'ellipsis-horizontal';
+    }, []);
+
     const fetchCategories = useCallback(async () => {
         try {
             setLoading(true);
@@ -27,14 +33,18 @@ export function useCategories() {
                 .order('name');
 
             if (error) throw error;
-            setCategories(data || []);
+            const normalized = (data || []).map((category) => ({
+                ...category,
+                icon: normalizeIcon(category.icon),
+            }));
+            setCategories(normalized);
             setError(null);
         } catch (err: any) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [normalizeIcon]);
 
     const getCategoriesByType = (type: 'income' | 'expense') => {
         return categories.filter((cat) => cat.type === type);
@@ -55,7 +65,7 @@ export function useCategories() {
                         user_id: user.id,
                         name: params.name,
                         type: params.type,
-                        icon: params.icon,
+                        icon: normalizeIcon(params.icon),
                         color: params.color,
                         is_default: false,
                     },
