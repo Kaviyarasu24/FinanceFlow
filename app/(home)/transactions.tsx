@@ -4,7 +4,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -18,22 +18,35 @@ import {
 } from 'react-native';
 
 type TransactionType = 'all' | 'income' | 'expense';
+type DateFilter = 'all' | 'today' | 'week' | 'month';
 
 export default function TransactionsScreen() {
     const {
         transactions,
         loading,
-        loadingMore,
-        hasMore,
         deleteTransaction,
-        loadMoreTransactions,
         refreshTransactions,
-    } = useTransactions({ initialFetchMode: 'page', pageSize: 30 });
+    } = useTransactions({ initialFetchMode: 'all' });
     const { categories } = useCategories();
     const { formatAmount } = useCurrency();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<TransactionType>('all');
+    const [activeDateFilter, setActiveDateFilter] = useState<DateFilter>('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [refreshing, setRefreshing] = useState(false);
+
+    const filteredCategories = useMemo(
+        () => categories.filter((category) => activeFilter === 'all' || category.type === activeFilter),
+        [categories, activeFilter]
+    );
+
+    useEffect(() => {
+        if (categoryFilter === 'all') return;
+        const categoryStillVisible = filteredCategories.some((category) => category.id === categoryFilter);
+        if (!categoryStillVisible) {
+            setCategoryFilter('all');
+        }
+    }, [categoryFilter, filteredCategories]);
 
     // Refresh transactions when screen comes into focus
     useFocusEffect(
@@ -46,10 +59,6 @@ export default function TransactionsScreen() {
         setRefreshing(true);
         await refreshTransactions();
         setRefreshing(false);
-    };
-
-    const onLoadMore = async () => {
-        await loadMoreTransactions();
     };
 
     const handleEdit = (transaction: typeof transactions[number]) => {
@@ -121,16 +130,43 @@ export default function TransactionsScreen() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
+    const isInDateFilter = (dateString: string) => {
+        if (activeDateFilter === 'all') return true;
+
+        const txDate = new Date(dateString);
+        txDate.setHours(0, 0, 0, 0);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (activeDateFilter === 'today') {
+            return txDate.getTime() === today.getTime();
+        }
+
+        if (activeDateFilter === 'week') {
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - 6);
+            return txDate >= weekStart && txDate <= today;
+        }
+
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        return txDate >= monthStart && txDate <= today;
+    };
+
     const filteredTransactions = transactions
         .filter((transaction) => {
             const category = getCategoryInfo(transaction.category_id);
             const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (transaction.notes?.toLowerCase().includes(searchQuery.toLowerCase()));
-            const matchesFilter =
+            const matchesType =
                 activeFilter === 'all' ||
                 (activeFilter === 'income' && transaction.type === 'income') ||
                 (activeFilter === 'expense' && transaction.type === 'expense');
-            return matchesSearch && matchesFilter;
+            const matchesCategory =
+                categoryFilter === 'all' || transaction.category_id === categoryFilter;
+            const matchesDate = isInDateFilter(transaction.date);
+
+            return matchesSearch && matchesType && matchesCategory && matchesDate;
         })
         .sort((a, b) => {
             // Sort by created_at timestamp descending (newest first)
@@ -204,6 +240,77 @@ export default function TransactionsScreen() {
                     </TouchableOpacity>
                 </View>
 
+                <View style={styles.filterTabs}>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeDateFilter === 'all' && styles.filterTabActive]}
+                        onPress={() => setActiveDateFilter('all')}
+                    >
+                        <Text style={[styles.filterTabText, activeDateFilter === 'all' && styles.filterTabTextActive]}>
+                            All Time
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeDateFilter === 'today' && styles.filterTabActive]}
+                        onPress={() => setActiveDateFilter('today')}
+                    >
+                        <Text style={[styles.filterTabText, activeDateFilter === 'today' && styles.filterTabTextActive]}>
+                            Today
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeDateFilter === 'week' && styles.filterTabActive]}
+                        onPress={() => setActiveDateFilter('week')}
+                    >
+                        <Text style={[styles.filterTabText, activeDateFilter === 'week' && styles.filterTabTextActive]}>
+                            7 Days
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, activeDateFilter === 'month' && styles.filterTabActive]}
+                        onPress={() => setActiveDateFilter('month')}
+                    >
+                        <Text style={[styles.filterTabText, activeDateFilter === 'month' && styles.filterTabTextActive]}>
+                            This Month
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.categoryFilterContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.categoryFilterContent}
+                        style={styles.categoryFilterScroll}
+                    >
+                        <TouchableOpacity
+                            style={[styles.categoryChip, categoryFilter === 'all' && styles.categoryChipActive]}
+                            onPress={() => setCategoryFilter('all')}
+                        >
+                            <Text style={[styles.categoryChipText, categoryFilter === 'all' && styles.categoryChipTextActive]}>
+                                All Categories
+                            </Text>
+                        </TouchableOpacity>
+
+                        {filteredCategories.map((category) => (
+                            <TouchableOpacity
+                                key={category.id}
+                                style={[styles.categoryChip, categoryFilter === category.id && styles.categoryChipActive]}
+                                onPress={() => setCategoryFilter(category.id)}
+                            >
+                                <Text
+                                    numberOfLines={1}
+                                    style={[
+                                        styles.categoryChipText,
+                                        categoryFilter === category.id && styles.categoryChipTextActive,
+                                    ]}
+                                >
+                                    {category.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
                 {filteredTransactions.map((transaction) => {
                     const category = getCategoryInfo(transaction.category_id);
                     return (
@@ -252,24 +359,6 @@ export default function TransactionsScreen() {
                     </View>
                 )}
 
-                {hasMore && filteredTransactions.length > 0 && (
-                    <TouchableOpacity
-                        style={[styles.loadMoreButton, loadingMore && styles.loadMoreButtonDisabled]}
-                        onPress={onLoadMore}
-                        disabled={loadingMore}
-                    >
-                        {loadingMore ? (
-                            <ActivityIndicator size="small" color={Colors.white} />
-                        ) : (
-                            <Text style={styles.loadMoreButtonText}>Load More</Text>
-                        )}
-                    </TouchableOpacity>
-                )}
-
-                {!hasMore && transactions.length > 0 && (
-                    <Text style={styles.endOfListText}>No more transactions</Text>
-                )}
-
                 {/* Bottom spacing for tab bar */}
                 <View style={styles.bottomSpacing} />
             </ScrollView>
@@ -305,7 +394,7 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         flexDirection: 'row',
-        marginBottom: 12,
+        marginBottom: 10,
         gap: 12,
     },
     searchBar: {
@@ -325,56 +414,84 @@ const styles = StyleSheet.create({
     },
     filterTabs: {
         flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 10,
     },
     filterTab: {
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
         backgroundColor: Colors.background.primary,
     },
     filterTabActive: {
         backgroundColor: Colors.primary,
     },
     filterTabText: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
         color: Colors.text.secondary,
     },
     filterTabTextActive: {
         color: Colors.white,
     },
+    categoryFilterContainer: {
+        marginBottom: 12,
+    },
+    categoryFilterScroll: {
+        marginHorizontal: -2,
+    },
+    categoryFilterContent: {
+        paddingHorizontal: 2,
+        gap: 8,
+    },
+    categoryChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: Colors.background.primary,
+    },
+    categoryChipActive: {
+        backgroundColor: Colors.primary,
+    },
+    categoryChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.text.secondary,
+    },
+    categoryChipTextActive: {
+        color: Colors.white,
+    },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        padding: 20,
+        padding: 16,
     },
     transactionItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 2,
+        elevation: 1,
     },
     transactionLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         flex: 1,
     },
     transactionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: 40,
+        height: 40,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -382,30 +499,30 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     transactionTitle: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
         color: Colors.text.primary,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     transactionDate: {
-        fontSize: 13,
+        fontSize: 12,
         color: Colors.text.secondary,
     },
     transactionNotes: {
-        fontSize: 12,
+        fontSize: 11,
         color: Colors.text.light,
-        marginTop: 2,
+        marginTop: 1,
     },
     transactionRight: {
         alignItems: 'flex-end',
     },
     transactionActionHint: {
-        marginTop: 4,
-        fontSize: 11,
+        marginTop: 2,
+        fontSize: 10,
         color: Colors.text.light,
     },
     transactionAmount: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
     },
     incomeAmount: {
@@ -429,29 +546,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.text.light,
         marginTop: 8,
-    },
-    loadMoreButton: {
-        marginTop: 8,
-        marginBottom: 8,
-        backgroundColor: Colors.primary,
-        height: 44,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    loadMoreButtonDisabled: {
-        opacity: 0.7,
-    },
-    loadMoreButtonText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: Colors.white,
-    },
-    endOfListText: {
-        textAlign: 'center',
-        color: Colors.text.light,
-        fontSize: 12,
-        marginTop: 12,
     },
     bottomSpacing: {
         height: 140,
