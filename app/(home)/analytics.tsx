@@ -108,8 +108,8 @@ interface DonutChartProps {
 }
 
 const DonutChart: React.FC<DonutChartProps> = ({ data, colors }) => {
-    const size = 140;
-    const strokeWidth = 28;
+    const size = 124;
+    const strokeWidth = 24;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const centerX = size / 2;
@@ -419,7 +419,9 @@ export default function AnalyticsScreen() {
                                     <View key={cat.id} style={styles.categoryLegendItem}>
                                         <View style={styles.categoryLegendLeft}>
                                             <View style={[styles.legendDot, { backgroundColor: categoryColors[index] }]} />
-                                            <Text style={styles.categoryLegendText}>{cat.name}</Text>
+                                            <Text style={styles.categoryLegendText} numberOfLines={1} ellipsizeMode="tail">
+                                                {cat.name}
+                                            </Text>
                                         </View>
                                         <Text style={styles.categoryLegendPercent}>{cat.percentage.toFixed(0)}%</Text>
                                     </View>
@@ -690,7 +692,7 @@ const styles = StyleSheet.create({
     donutContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 24,
+        gap: 14,
         justifyContent: 'space-between',
     },
     donutContainerStacked: {
@@ -718,12 +720,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
         flex: 1,
-        paddingRight: 12,
+        paddingRight: 8,
     },
     categoryLegendText: {
-        fontSize: 13,
+        fontSize: 12,
         color: Colors.text.primary,
-        flexShrink: 1,
+        flex: 1,
     },
     categoryLegendPercent: {
         fontSize: 14,
