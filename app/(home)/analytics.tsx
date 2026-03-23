@@ -18,6 +18,7 @@ import {
 import Svg, { Circle, G } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
+const INCOME_EXPENSE_CHART_HEIGHT = 160;
 
 // Type definitions
 interface CategoryBreakdown {
@@ -459,8 +460,12 @@ export default function AnalyticsScreen() {
                             {/* Bar Chart */}
                             <View style={styles.barChart}>
                                 {analytics.monthlyData.map((data, index) => {
-                                    const incomeHeight = data.income > 0 ? Math.max((data.income / maxValue) * 180, 8) : 0;
-                                    const expenseHeight = data.expense > 0 ? Math.max((data.expense / maxValue) * 180, 8) : 0;
+                                    const incomeHeight = data.income > 0
+                                        ? Math.max((data.income / maxValue) * INCOME_EXPENSE_CHART_HEIGHT, 8)
+                                        : 0;
+                                    const expenseHeight = data.expense > 0
+                                        ? Math.max((data.expense / maxValue) * INCOME_EXPENSE_CHART_HEIGHT, 8)
+                                        : 0;
                                     return (
                                         <View key={index} style={styles.barGroup}>
                                             <View style={styles.barPair}>
@@ -812,7 +817,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        height: 160,
+        height: INCOME_EXPENSE_CHART_HEIGHT,
         paddingBottom: 8,
     },
     barGroup: {
@@ -824,7 +829,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-end',
         gap: 4,
-        height: 160,
+        height: INCOME_EXPENSE_CHART_HEIGHT,
         justifyContent: 'center',
     },
     barPlaceholder: {
