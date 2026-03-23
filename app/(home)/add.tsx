@@ -6,7 +6,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -33,8 +33,16 @@ interface Category {
 export default function AddTransactionScreen() {
     const { user } = useAuth();
     const { categories, loading: categoriesLoading } = useCategories();
-    const { addTransaction, fetchTransactions } = useTransactions();
+    const { addTransaction, updateTransaction, fetchTransactions } = useTransactions();
     const { getCurrencySymbol } = useCurrency();
+    const params = useLocalSearchParams<{
+        transactionId?: string | string[];
+        type?: string | string[];
+        amount?: string | string[];
+        categoryId?: string | string[];
+        date?: string | string[];
+        notes?: string | string[];
+    }>();
 
     const [type, setType] = useState<TransactionType>('expense');
     const [amount, setAmount] = useState('');
@@ -43,15 +51,55 @@ export default function AddTransactionScreen() {
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
 
+    const getParamValue = (value?: string | string[]) =>
+        Array.isArray(value) ? value[0] : value;
+
+    const transactionId = getParamValue(params.transactionId);
+    const paramType = getParamValue(params.type);
+    const paramAmount = getParamValue(params.amount);
+    const paramCategoryId = getParamValue(params.categoryId);
+    const paramDate = getParamValue(params.date);
+    const paramNotes = getParamValue(params.notes);
+    const isEditMode = !!transactionId;
+
+    useEffect(() => {
+        if (!isEditMode) return;
+
+        if (paramType === 'income' || paramType === 'expense') {
+            setType(paramType);
+        }
+
+        if (paramAmount) {
+            setAmount(paramAmount);
+        }
+
+        if (paramDate) {
+            const parsedDate = new Date(paramDate);
+            if (!Number.isNaN(parsedDate.getTime())) {
+                setDate(parsedDate);
+            }
+        }
+
+        setNotes(paramNotes || '');
+    }, [isEditMode, paramAmount, paramDate, paramNotes, paramType]);
+
     // Set initial category when categories load
     useEffect(() => {
         if (categories.length > 0 && !selectedCategory) {
-            const expenseCategories = categories.filter(c => c.type === 'expense');
-            if (expenseCategories.length > 0) {
-                setSelectedCategory(expenseCategories[0]);
+            if (isEditMode && paramCategoryId) {
+                const matchingCategory = categories.find((c) => c.id === paramCategoryId);
+                if (matchingCategory) {
+                    setSelectedCategory(matchingCategory);
+                    return;
+                }
+            }
+
+            const initialCategories = categories.filter(c => c.type === type);
+            if (initialCategories.length > 0) {
+                setSelectedCategory(initialCategories[0]);
             }
         }
-    }, [categories, selectedCategory]);
+    }, [categories, isEditMode, paramCategoryId, selectedCategory, type]);
 
     const handleTypeChange = (newType: TransactionType) => {
         setType(newType);
@@ -86,14 +134,18 @@ export default function AddTransactionScreen() {
         }
 
         setSaving(true);
-        const { error } = await addTransaction({
+        const payload = {
             user_id: user.id,
             type,
             amount: parseFloat(amount),
             category_id: selectedCategory.id,
-            date: date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            date: date.toISOString().split('T')[0],
             notes: notes || null,
-        });
+        };
+
+        const { error } = isEditMode && transactionId
+            ? await updateTransaction(transactionId, payload)
+            : await addTransaction(payload);
 
         if (error) {
             setSaving(false);
@@ -107,8 +159,8 @@ export default function AddTransactionScreen() {
             setAmount('');
             setNotes('');
             setDate(new Date());
-            // Navigate back to home page
-            router.push('/(home)');
+            // Navigate to transactions list after save/update
+            router.push('/(home)/transactions');
         }
     };
 
@@ -127,8 +179,10 @@ export default function AddTransactionScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Add Transaction</Text>
-                <Text style={styles.headerSubtitle}>Track your income and expenses</Text>
+                <Text style={styles.headerTitle}>{isEditMode ? 'Edit Transaction' : 'Add Transaction'}</Text>
+                <Text style={styles.headerSubtitle}>
+                    {isEditMode ? 'Update your transaction details' : 'Track your income and expenses'}
+                </Text>
             </View>
 
             <ScrollView
@@ -270,7 +324,7 @@ export default function AddTransactionScreen() {
                     {saving ? (
                         <ActivityIndicator color={Colors.white} />
                     ) : (
-                        <Text style={styles.saveButtonText}>Save Transaction</Text>
+                        <Text style={styles.saveButtonText}>{isEditMode ? 'Update Transaction' : 'Save Transaction'}</Text>
                     )}
                 </TouchableOpacity>
 

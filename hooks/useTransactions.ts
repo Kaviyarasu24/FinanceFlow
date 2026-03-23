@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/lib/database.types';
 
@@ -6,29 +6,119 @@ type Transaction = Database['public']['Tables']['transactions']['Row'];
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update'];
 
-export function useTransactions() {
+interface UseTransactionsOptions {
+    initialFetchMode?: 'all' | 'page';
+    pageSize?: number;
+}
+
+export function useTransactions(options: UseTransactionsOptions = {}) {
+    const initialFetchMode = options.initialFetchMode ?? 'all';
+    const pageSize = options.pageSize ?? 30;
+
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchTransactions = useCallback(async () => {
-        try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from('transactions')
-                .select('*')
-                .order('date', { ascending: false })
-                .order('created_at', { ascending: false });
+    const offsetRef = useRef(0);
+    const hasMoreRef = useRef(true);
+    const inFlightRef = useRef(false);
 
-            if (error) throw error;
-            setTransactions(data || []);
-            setError(null);
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const fetchTransactions = useCallback(
+        async (params?: { paginated?: boolean; reset?: boolean }) => {
+            const paginated = params?.paginated ?? false;
+            const reset = params?.reset ?? false;
+
+            if (inFlightRef.current) return;
+            if (paginated && !reset && !hasMoreRef.current) return;
+
+            inFlightRef.current = true;
+
+            try {
+                if (paginated) {
+                    if (reset) {
+                        setLoading(true);
+                        setError(null);
+                        offsetRef.current = 0;
+                        hasMoreRef.current = true;
+                        setHasMore(true);
+                    } else {
+                        setLoadingMore(true);
+                    }
+
+                    const from = offsetRef.current;
+                    const to = from + pageSize - 1;
+
+                    const { data, error } = await supabase
+                        .from('transactions')
+                        .select('*')
+                        .order('date', { ascending: false })
+                        .order('created_at', { ascending: false })
+                        .range(from, to);
+
+                    if (error) throw error;
+
+                    const rows = data || [];
+
+                    if (reset) {
+                        setTransactions(rows);
+                    } else {
+                        setTransactions((prev) => {
+                            const existingIds = new Set(prev.map((item) => item.id));
+                            const nextRows = rows.filter((item) => !existingIds.has(item.id));
+                            return [...prev, ...nextRows];
+                        });
+                    }
+
+                    offsetRef.current = from + rows.length;
+                    const canLoadMore = rows.length === pageSize;
+                    hasMoreRef.current = canLoadMore;
+                    setHasMore(canLoadMore);
+                } else {
+                    setLoading(true);
+                    setError(null);
+
+                    const { data, error } = await supabase
+                        .from('transactions')
+                        .select('*')
+                        .order('date', { ascending: false })
+                        .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+
+                    const rows = data || [];
+                    setTransactions(rows);
+                    offsetRef.current = rows.length;
+                    hasMoreRef.current = false;
+                    setHasMore(false);
+                }
+
+                setError(null);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                inFlightRef.current = false;
+                if (paginated && !reset) {
+                    setLoadingMore(false);
+                } else {
+                    setLoading(false);
+                }
+            }
+        },
+        [pageSize]
+    );
+
+    const loadMoreTransactions = useCallback(async () => {
+        await fetchTransactions({ paginated: true, reset: false });
+    }, [fetchTransactions]);
+
+    const refreshTransactions = useCallback(async () => {
+        await fetchTransactions({
+            paginated: initialFetchMode === 'page',
+            reset: true,
+        });
+    }, [fetchTransactions, initialFetchMode]);
 
     const addTransaction = useCallback(async (transaction: TransactionInsert) => {
         try {
@@ -42,6 +132,7 @@ export function useTransactions() {
 
             // Optimistically update local state
             setTransactions((prev) => [data, ...prev]);
+            offsetRef.current += 1;
             return { data, error: null };
         } catch (err: any) {
             return { data: null, error: err.message };
@@ -79,7 +170,15 @@ export function useTransactions() {
             if (error) throw error;
 
             // Update local state
-            setTransactions((prev) => prev.filter((t) => t.id !== id));
+            let removedCount = 0;
+            setTransactions((prev) => {
+                const next = prev.filter((t) => t.id !== id);
+                removedCount = prev.length - next.length;
+                return next;
+            });
+            if (removedCount > 0 && offsetRef.current > 0) {
+                offsetRef.current = Math.max(0, offsetRef.current - removedCount);
+            }
             return { error: null };
         } catch (err: any) {
             return { error: err.message };
@@ -103,14 +202,22 @@ export function useTransactions() {
     }, []);
 
     useEffect(() => {
-        fetchTransactions();
-    }, [fetchTransactions]);
+        if (initialFetchMode === 'page') {
+            fetchTransactions({ paginated: true, reset: true });
+        } else {
+            fetchTransactions();
+        }
+    }, [fetchTransactions, initialFetchMode]);
 
     return {
         transactions,
         loading,
+        loadingMore,
+        hasMore,
         error,
         fetchTransactions,
+        loadMoreTransactions,
+        refreshTransactions,
         addTransaction,
         updateTransaction,
         deleteTransaction,

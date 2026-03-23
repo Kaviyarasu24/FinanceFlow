@@ -3,10 +3,11 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -19,7 +20,15 @@ import {
 type TransactionType = 'all' | 'income' | 'expense';
 
 export default function TransactionsScreen() {
-    const { transactions, loading, fetchTransactions } = useTransactions();
+    const {
+        transactions,
+        loading,
+        loadingMore,
+        hasMore,
+        deleteTransaction,
+        loadMoreTransactions,
+        refreshTransactions,
+    } = useTransactions({ initialFetchMode: 'page', pageSize: 30 });
     const { categories } = useCategories();
     const { formatAmount } = useCurrency();
     const [searchQuery, setSearchQuery] = useState('');
@@ -29,14 +38,64 @@ export default function TransactionsScreen() {
     // Refresh transactions when screen comes into focus
     useFocusEffect(
         useCallback(() => {
-            fetchTransactions();
-        }, [fetchTransactions])
+            refreshTransactions();
+        }, [refreshTransactions])
     );
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await fetchTransactions();
+        await refreshTransactions();
         setRefreshing(false);
+    };
+
+    const onLoadMore = async () => {
+        await loadMoreTransactions();
+    };
+
+    const handleEdit = (transaction: typeof transactions[number]) => {
+        router.push({
+            pathname: '/(home)/add',
+            params: {
+                transactionId: transaction.id,
+                type: transaction.type,
+                amount: String(transaction.amount),
+                categoryId: transaction.category_id || '',
+                date: transaction.date,
+                notes: transaction.notes || '',
+            },
+        });
+    };
+
+    const handleDelete = (transaction: typeof transactions[number]) => {
+        Alert.alert(
+            'Delete Transaction',
+            'Are you sure you want to delete this transaction?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const { error } = await deleteTransaction(transaction.id);
+                        if (error) {
+                            Alert.alert('Error', error);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleTransactionLongPress = (transaction: typeof transactions[number]) => {
+        Alert.alert(
+            'Transaction Actions',
+            'Choose an action for this transaction.',
+            [
+                { text: 'Edit', onPress: () => handleEdit(transaction) },
+                { text: 'Delete', style: 'destructive', onPress: () => handleDelete(transaction) },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
     };
 
     const getCategoryInfo = (categoryId: string | null) => {
@@ -148,7 +207,12 @@ export default function TransactionsScreen() {
                 {filteredTransactions.map((transaction) => {
                     const category = getCategoryInfo(transaction.category_id);
                     return (
-                        <TouchableOpacity key={transaction.id} style={styles.transactionItem}>
+                        <TouchableOpacity
+                            key={transaction.id}
+                            style={styles.transactionItem}
+                            onPress={() => handleEdit(transaction)}
+                            onLongPress={() => handleTransactionLongPress(transaction)}
+                        >
                             <View style={styles.transactionLeft}>
                                 <View style={[styles.transactionIcon, { backgroundColor: `${category.color}20` }]}>
                                     <Ionicons name={category.icon as any} size={24} color={category.color} />
@@ -172,6 +236,7 @@ export default function TransactionsScreen() {
                                 >
                                     {transaction.type === 'income' ? '+' : '-'}{formatAmount(transaction.amount)}
                                 </Text>
+                                <Text style={styles.transactionActionHint}>Tap to edit</Text>
                             </View>
                         </TouchableOpacity>
                     );
@@ -185,6 +250,24 @@ export default function TransactionsScreen() {
                             {searchQuery ? 'Try a different search' : 'Add your first transaction'}
                         </Text>
                     </View>
+                )}
+
+                {hasMore && filteredTransactions.length > 0 && (
+                    <TouchableOpacity
+                        style={[styles.loadMoreButton, loadingMore && styles.loadMoreButtonDisabled]}
+                        onPress={onLoadMore}
+                        disabled={loadingMore}
+                    >
+                        {loadingMore ? (
+                            <ActivityIndicator size="small" color={Colors.white} />
+                        ) : (
+                            <Text style={styles.loadMoreButtonText}>Load More</Text>
+                        )}
+                    </TouchableOpacity>
+                )}
+
+                {!hasMore && transactions.length > 0 && (
+                    <Text style={styles.endOfListText}>No more transactions</Text>
                 )}
 
                 {/* Bottom spacing for tab bar */}
@@ -316,6 +399,11 @@ const styles = StyleSheet.create({
     transactionRight: {
         alignItems: 'flex-end',
     },
+    transactionActionHint: {
+        marginTop: 4,
+        fontSize: 11,
+        color: Colors.text.light,
+    },
     transactionAmount: {
         fontSize: 16,
         fontWeight: '700',
@@ -341,6 +429,29 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.text.light,
         marginTop: 8,
+    },
+    loadMoreButton: {
+        marginTop: 8,
+        marginBottom: 8,
+        backgroundColor: Colors.primary,
+        height: 44,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadMoreButtonDisabled: {
+        opacity: 0.7,
+    },
+    loadMoreButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: Colors.white,
+    },
+    endOfListText: {
+        textAlign: 'center',
+        color: Colors.text.light,
+        fontSize: 12,
+        marginTop: 12,
     },
     bottomSpacing: {
         height: 140,
