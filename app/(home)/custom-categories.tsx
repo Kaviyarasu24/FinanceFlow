@@ -42,7 +42,14 @@ const COLOR_OPTIONS = [
 
 export default function CustomCategoriesScreen() {
     const router = useRouter();
-    const { getCustomCategories, addCategory, deleteCategory, loading } = useCategories();
+    const {
+        getCustomCategories,
+        addCategory,
+        deleteCategory,
+        getCategoryTransactionCount,
+        reassignTransactionsAndDeleteCategory,
+        loading,
+    } = useCategories();
     const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense');
     const [showModal, setShowModal] = useState(false);
     const [categoryName, setCategoryName] = useState('');
@@ -113,6 +120,36 @@ export default function CustomCategoriesScreen() {
                 {
                     text: 'Delete',
                     onPress: async () => {
+                        const { count, error: countError } = await getCategoryTransactionCount(categoryId);
+
+                        if (countError) {
+                            Alert.alert('Error', `Failed to check category usage: ${countError}`);
+                            return;
+                        }
+
+                        if (count > 0) {
+                            Alert.alert(
+                                'Category In Use',
+                                `This category is used by ${count} transaction(s). You can reassign those transactions to Uncategorized and then delete this category.`,
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Reassign and Delete',
+                                        style: 'destructive',
+                                        onPress: async () => {
+                                            const { error } = await reassignTransactionsAndDeleteCategory(categoryId);
+                                            if (error) {
+                                                Alert.alert('Error', `Failed to reassign and delete category: ${error}`);
+                                            } else {
+                                                Alert.alert('Success', 'Category deleted and transactions moved to Uncategorized');
+                                            }
+                                        },
+                                    },
+                                ]
+                            );
+                            return;
+                        }
+
                         const { error } = await deleteCategory(categoryId);
                         if (error) {
                             Alert.alert('Error', `Failed to delete category: ${error}`);

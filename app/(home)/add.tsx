@@ -6,13 +6,13 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -35,6 +35,7 @@ export default function AddTransactionScreen() {
     const { categories, loading: categoriesLoading } = useCategories();
     const { addTransaction, updateTransaction, fetchTransactions } = useTransactions();
     const { getCurrencySymbol } = useCurrency();
+    const tabBarHeight = useBottomTabBarHeight();
     const params = useLocalSearchParams<{
         transactionId?: string | string[];
         type?: string | string[];
@@ -185,11 +186,7 @@ export default function AddTransactionScreen() {
                 </Text>
             </View>
 
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
+            <View style={[styles.content, { paddingBottom: tabBarHeight + 8 }]}>
                 {/* Type Toggle */}
                 <View style={styles.typeToggleContainer}>
                     <TouchableOpacity
@@ -198,7 +195,7 @@ export default function AddTransactionScreen() {
                     >
                         <Ionicons
                             name="arrow-down-circle-outline"
-                            size={20}
+                            size={18}
                             color={type === 'expense' ? Colors.white : '#EF4444'}
                         />
                         <Text
@@ -217,7 +214,7 @@ export default function AddTransactionScreen() {
                     >
                         <Ionicons
                             name="arrow-up-circle-outline"
-                            size={20}
+                            size={18}
                             color={type === 'income' ? Colors.white : '#22C55E'}
                         />
                         <Text
@@ -310,7 +307,7 @@ export default function AddTransactionScreen() {
                         value={notes}
                         onChangeText={setNotes}
                         multiline
-                        numberOfLines={4}
+                        numberOfLines={1}
                         textAlignVertical="top"
                     />
                 </View>
@@ -328,9 +325,7 @@ export default function AddTransactionScreen() {
                     )}
                 </TouchableOpacity>
 
-                {/* Bottom spacing for tab bar */}
-                <View style={styles.bottomSpacing} />
-            </ScrollView>
+            </View>
         </View>
     );
 }
@@ -342,30 +337,28 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: Colors.white,
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
+        paddingHorizontal: 14,
+        paddingTop: 50,
+        paddingBottom: 8,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: 20,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     headerSubtitle: {
-        fontSize: 14,
+        fontSize: 11,
         color: Colors.text.secondary,
     },
-    scrollView: {
+    content: {
         flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
+        padding: 10,
     },
     typeToggleContainer: {
         flexDirection: 'row',
-        gap: 12,
-        marginBottom: 20,
+        gap: 6,
+        marginBottom: 8,
     },
     typeButton: {
         flex: 1,
@@ -373,9 +366,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        padding: 16,
-        gap: 8,
+        borderRadius: 10,
+        paddingVertical: 8,
+        gap: 5,
         borderWidth: 2,
         borderColor: 'transparent',
     },
@@ -388,7 +381,7 @@ const styles = StyleSheet.create({
         borderColor: '#22C55E',
     },
     typeButtonText: {
-        fontSize: 15,
+        fontSize: 11,
         fontWeight: '600',
         color: Colors.text.primary,
     },
@@ -397,46 +390,46 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: Colors.white,
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
+        borderRadius: 10,
+        padding: 10,
+        marginBottom: 8,
     },
     label: {
-        fontSize: 14,
+        fontSize: 11,
         fontWeight: '600',
         color: Colors.text.secondary,
-        marginBottom: 12,
+        marginBottom: 6,
     },
     amountContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     currencySymbol: {
-        fontSize: 32,
+        fontSize: 22,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginRight: 8,
+        marginRight: 4,
     },
     amountInput: {
         flex: 1,
-        fontSize: 32,
+        fontSize: 22,
         fontWeight: '700',
         color: Colors.text.primary,
     },
     notesInput: {
         backgroundColor: Colors.background.primary,
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 15,
+        borderRadius: 8,
+        padding: 8,
+        fontSize: 12,
         color: Colors.text.primary,
-        minHeight: 100,
+        minHeight: 40,
     },
     saveButton: {
         backgroundColor: Colors.primary,
-        borderRadius: 12,
-        padding: 18,
+        borderRadius: 10,
+        paddingVertical: 10,
         alignItems: 'center',
-        marginTop: 8,
+        marginTop: 4,
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -448,7 +441,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     saveButtonText: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: '700',
         color: Colors.white,
     },
@@ -460,8 +453,5 @@ const styles = StyleSheet.create({
         marginTop: 12,
         fontSize: 14,
         color: Colors.text.secondary,
-    },
-    bottomSpacing: {
-        height: 140,
     },
 });

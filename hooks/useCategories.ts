@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -18,7 +18,7 @@ export function useCategories() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchCategories = async () => {
+    const fetchCategories = useCallback(async () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
@@ -34,7 +34,7 @@ export function useCategories() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const getCategoriesByType = (type: 'income' | 'expense') => {
         return categories.filter((cat) => cat.type === type);
@@ -85,6 +85,43 @@ export function useCategories() {
         }
     };
 
+    const getCategoryTransactionCount = async (categoryId: string) => {
+        try {
+            const { count, error } = await supabase
+                .from('transactions')
+                .select('id', { count: 'exact', head: true })
+                .eq('category_id', categoryId);
+
+            if (error) throw error;
+            return { count: count ?? 0, error: null };
+        } catch (err: any) {
+            return { count: 0, error: err.message };
+        }
+    };
+
+    const reassignTransactionsAndDeleteCategory = async (categoryId: string) => {
+        try {
+            const { error: updateError } = await supabase
+                .from('transactions')
+                .update({ category_id: null })
+                .eq('category_id', categoryId);
+
+            if (updateError) throw updateError;
+
+            const { error: deleteError } = await supabase
+                .from('categories')
+                .delete()
+                .eq('id', categoryId);
+
+            if (deleteError) throw deleteError;
+
+            await fetchCategories();
+            return { error: null };
+        } catch (err: any) {
+            return { error: err.message };
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
     }, []);
@@ -98,5 +135,7 @@ export function useCategories() {
         getCustomCategories,
         addCategory,
         deleteCategory,
+        getCategoryTransactionCount,
+        reassignTransactionsAndDeleteCategory,
     };
 }
