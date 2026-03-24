@@ -14,6 +14,7 @@ export const Colors = {
     },
 
     text: {
+        // Keep text dark for compatibility because many screens still use light card backgrounds.
         primary: '#1A1A1A',
         secondary: '#6B7280',
         light: '#9CA3AF',

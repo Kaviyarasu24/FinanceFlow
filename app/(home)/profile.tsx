@@ -1,6 +1,5 @@
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -19,7 +18,6 @@ import {
 export default function ProfileScreen() {
     const router = useRouter();
     const { signOut, user } = useAuth();
-    const { isDarkMode, toggleDarkMode } = useTheme();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -141,21 +139,6 @@ export default function ProfileScreen() {
                 {/* Preferences Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>PREFERENCES</Text>
-
-                    <View style={styles.menuItem}>
-                        <View style={styles.menuItemLeft}>
-                            <View style={[styles.menuIcon, { backgroundColor: '#F3F4F6' }]}>
-                                <Ionicons name="moon-outline" size={20} color={Colors.text.secondary} />
-                            </View>
-                            <Text style={styles.menuItemText}>Dark Mode</Text>
-                        </View>
-                        <Switch
-                            value={isDarkMode}
-                            onValueChange={toggleDarkMode}
-                            trackColor={{ false: '#E5E7EB', true: Colors.primary }}
-                            thumbColor={Colors.white}
-                        />
-                    </View>
 
                     <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(home)/app-settings')}>
                         <View style={styles.menuItemLeft}>

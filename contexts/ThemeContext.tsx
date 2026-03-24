@@ -1,7 +1,4 @@
-import { useSettings } from '@/hooks/useSettings';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext } from 'react';
 
 interface ThemeContextType {
     isDarkMode: boolean;
@@ -12,26 +9,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const systemColorScheme = useColorScheme();
-    const { user } = useAuth();
-    const { settings, updateSettings } = useSettings();
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const isDarkMode = false;
+    const loading = false;
 
-    useEffect(() => {
-        if (settings) {
-            setIsDarkMode(settings.dark_mode_enabled ?? false);
-            setLoading(false);
-        }
-    }, [settings]);
-
-    const toggleDarkMode = async (enabled: boolean) => {
-        if (!user) return;
-
-        setIsDarkMode(enabled);
-        await updateSettings({
-            dark_mode_enabled: enabled,
-        });
+    const toggleDarkMode = async (_enabled: boolean) => {
+        // Dark mode is intentionally disabled. App always uses light mode.
     };
 
     return (
