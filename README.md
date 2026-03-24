@@ -1,150 +1,133 @@
-# FinanceFlow - Personal Finance Management App
+# FinanceFlow
 
-A beautiful, modern React Native mobile application for managing personal finances built with Expo.
+FinanceFlow is a personal finance mobile app built with Expo, React Native, TypeScript, and Supabase.
 
-## 🎨 Features
+It supports authentication, transaction tracking, analytics, profile and settings management, and custom categories.
+
+## Current Features
 
 ### Authentication
-- ✅ **Sign In Screen** - Email/password login with remember me
-- ✅ **Sign Up Screen** - Create account with full name, email, and password
-- ✅ **Social Login** - Google and Apple sign-in options
-- ✅ **Password Visibility Toggle** - Show/hide password functionality
+- Email and password sign in
+- Email and password sign up
+- Forgot password flow
 
-### Home Dashboard
-- ✅ **Spending Overview** - Total spent, remaining budget, and upcoming bills
-- ✅ **Weekly Chart** - Bar chart showing daily spending
-- ✅ **Monthly Trend** - Line chart for spending trends
-- ✅ **Category Breakdown** - Spending by category (Shopping, Food & Dining, Transportation)
+### Transactions
+- Create and edit transaction entries
+- Income and expense transaction types
+- Category selection by type
+- Date and notes support
+- Input validation for amount and required fields
 
-### Navigation
-- ✅ **Bottom Tab Navigation** with 5 tabs:
-  - Home
-  - Transactions
-  - Add (Center FAB button)
-  - Analytics
-  - Profile
+### Transactions List
+- Full list loading in one fetch
+- Search by category name and notes
+- Filters:
+  - Type: All, Income, Expense
+  - Date: All Time, Today, 7 Days, This Month
+  - Category chips with type-aware filtering
+- Edit on tap and delete on long press
 
-## 🚀 Getting Started
+### Analytics
+- Income and expense summaries
+- Spending by category donut chart
+- Income vs Expense bar chart
+- Savings rate panel
+- Chart rendering adjusted for mobile overflow safety
 
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Expo CLI
+### Categories
+- Custom category creation and deletion
+- Ionicons-only icon picker with expanded icon set
+- Multi-row matrix picker for icons and colors
+- Automatic fallback to default icon when invalid icon values exist
+- Immediate category refresh on Add Transaction and Transactions pages when returning from category management
 
-### Installation
+### Profile and Settings
+- Profile details and edit flow
+- Personal info update and password change
+- App settings (currency and notifications)
+- Privacy and Help pages
+- Compact and consistent spacing across Home, Transactions, Add, Analytics, and Profile-related screens
 
-1. Install dependencies:
-```bash
-npm install
-```
+### Theme
+- Light mode only
+- Dark mode toggle removed
 
-2. Configure environment variables in `.env`:
-```bash
+## Tech Stack
+
+- Expo
+- React Native
+- Expo Router
+- TypeScript
+- Supabase (Auth + Postgres)
+- Ionicons
+
+## Environment Variables
+
+Create a .env file in the project root with:
+
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
 EXPO_PUBLIC_SUPABASE_KEY=your_supabase_publishable_or_anon_key
-```
 
-3. Start the development server:
-```bash
+## Getting Started
+
+1. Install dependencies
+
+npm install
+
+2. Start development server
+
 npm start
-```
 
-4. Run on specific platform:
-```bash
-npm run web      # Web browser
-npm run android  # Android emulator/device
-npm run ios      # iOS simulator/device
-```
+3. Platform-specific scripts
 
-## 📁 Project Structure
+npm run android
+npm run ios
+npm run web
 
-```
-financeflow/
-├── app/
-│   ├── (home)/              # Main app screens (after login)
-│   │   ├── _layout.tsx      # Tab navigation
-│   │   ├── index.tsx        # Home dashboard
-│   │   ├── transactions.tsx # Transactions list
-│   │   ├── add.tsx          # Add transaction
-│   │   ├── analytics.tsx    # Analytics & reports
-│   │   └── profile.tsx      # User profile
-│   ├── _layout.tsx          # Root layout
-│   ├── index.tsx            # App entry (redirects to sign-in)
-│   ├── sign-in.tsx          # Sign in screen
-│   └── sign-up.tsx          # Sign up screen
-├── constants/
-│   └── Colors.ts            # Color scheme
-└── package.json
-```
+## Expo Tunnel Note
 
-## 🎨 Design System
+If tunnel mode fails with a ngrok error such as failed to start tunnel, use LAN mode:
 
-### Colors
-- **Primary**: `#4ECDC4` (Teal)
-- **Primary Dark**: `#3DB8B0`
-- **Background**: `#F9FAFB`
-- **Text Primary**: `#1A1A1A`
-- **Text Secondary**: `#6B7280`
+npx expo start --lan --clear
 
-### Typography
-- **Headers**: 24-28px, Bold (700)
-- **Body**: 14-16px, Regular/SemiBold
-- **Labels**: 11-14px, Medium (500-600)
+You can also check ngrok status here:
 
-### Components
-- **Input Height**: 56px
-- **Button Height**: 56px
-- **Border Radius**: 12-16px (cards), 20-30px (modals)
-- **Spacing**: 12-24px between elements
+https://status.ngrok.com/
 
-## 📱 Mobile Responsive
+## Project Structure (High Level)
 
-All screens are fully responsive and optimized for:
-- Small phones (iPhone SE, etc.)
-- Standard phones (iPhone 14, Samsung Galaxy, etc.)
-- Large phones (iPhone Pro Max, etc.)
-- Tablets and web browsers
+app/
+- _layout.tsx
+- sign-in.tsx
+- sign-up.tsx
+- forgot-password.tsx
+- (home)/
+  - index.tsx
+  - transactions.tsx
+  - add.tsx
+  - analytics.tsx
+  - profile.tsx
+  - personal-info.tsx
+  - app-settings.tsx
+  - custom-categories.tsx
+  - privacy-security.tsx
+  - help-center.tsx
 
-Features:
-- KeyboardAvoidingView for input handling
-- ScrollView for content overflow
-- Flexible layouts with Flexbox
-- Touch-friendly button sizes (56px minimum)
+hooks/
+- useTransactions.ts
+- useCategories.ts
+- useSettings.ts
+- useCurrency.ts
 
-## 🔄 Navigation Flow
+contexts/
+- AuthContext.tsx
+- ThemeContext.tsx
 
-```
-Index (/) → Sign In → Home Dashboard
-              ↓
-           Sign Up → Home Dashboard
-```
+lib/
+- supabase.ts
+- database.types.ts
 
-After signing in, users access the main app with bottom tab navigation.
+## Notes
 
-## 🛠️ Technologies
-
-- **React Native** - Mobile framework
-- **Expo** - Development platform
-- **Expo Router** - File-based routing
-- **TypeScript** - Type safety
-- **React Navigation** - Navigation library
-- **Ionicons** - Icon library
-
-## 📝 TODO
-
-- [ ] Implement actual authentication logic
-- [ ] Add backend API integration
-- [ ] Complete Transactions screen
-- [ ] Complete Add Transaction screen
-- [ ] Complete Analytics screen
-- [ ] Complete Profile screen
-- [ ] Add data persistence (AsyncStorage/SQLite)
-- [ ] Add charts library (react-native-chart-kit or Victory Native)
-- [ ] Add form validation
-- [ ] Add loading states
-- [ ] Add error handling
-- [ ] Add animations and transitions
-
-## 📄 License
-
-This project is for educational purposes.
+- This app currently assumes light mode across screens.
+- Supabase table typings are defined in lib/database.types.ts.
