@@ -90,7 +90,7 @@ export default function ProfileScreen() {
                 <View style={styles.profileCard}>
                     <View style={styles.avatarContainer}>
                         <View style={styles.avatar}>
-                            <Ionicons name="person" size={40} color={Colors.white} />
+                            <Ionicons name="person" size={34} color={Colors.white} />
                         </View>
                     </View>
                     <View style={styles.profileInfo}>
@@ -230,57 +230,57 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: Colors.primary,
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 30,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+        paddingHorizontal: 16,
+        paddingTop: 50,
+        paddingBottom: 20,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: 22,
         fontWeight: '700',
         color: Colors.white,
-        marginBottom: 20,
+        marginBottom: 12,
     },
     profileCard: {
         alignItems: 'center',
     },
     avatarContainer: {
-        marginBottom: 16,
+        marginBottom: 10,
     },
     avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 68,
+        height: 68,
+        borderRadius: 34,
         backgroundColor: 'rgba(255, 255, 255, 0.3)',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 3,
+        borderWidth: 2,
         borderColor: Colors.white,
     },
     profileInfo: {
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 10,
     },
     profileName: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: '700',
         color: Colors.white,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     profileEmail: {
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.white,
         opacity: 0.9,
     },
     editButton: {
         backgroundColor: Colors.white,
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-        borderRadius: 20,
+        paddingHorizontal: 18,
+        paddingVertical: 8,
+        borderRadius: 16,
     },
     editButtonText: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
         color: Colors.primary,
     },
@@ -288,16 +288,16 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: 20,
+        padding: 16,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 14,
     },
     sectionTitle: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '600',
         color: Colors.text.secondary,
-        marginBottom: 12,
+        marginBottom: 8,
         letterSpacing: 0.5,
     },
     menuItem: {
@@ -305,9 +305,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 8,
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 6,
     },
     menuItemLeft: {
         flexDirection: 'row',
@@ -316,14 +316,14 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     menuIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
+        width: 34,
+        height: 34,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
     },
     menuItemText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '500',
         color: Colors.text.primary,
     },
@@ -332,24 +332,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: Colors.white,
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 8,
-        marginBottom: 16,
+        borderRadius: 10,
+        padding: 12,
+        marginTop: 4,
+        marginBottom: 12,
         gap: 8,
         borderWidth: 1,
         borderColor: '#FEE2E2',
     },
     logoutButtonText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
         color: '#EF4444',
     },
     appVersion: {
-        fontSize: 13,
+        fontSize: 12,
         color: Colors.text.light,
         textAlign: 'center',
-        marginBottom: 16,
+        marginBottom: 10,
     },
     bottomSpacing: {
         height: 140,
