@@ -8,7 +8,6 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -98,7 +97,7 @@ export default function ResetPasswordScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <View style={styles.content}>
                 <Text style={styles.title}>Set a New Password</Text>
                 <Text style={styles.subtitle}>Choose a secure password for your account.</Text>
 
@@ -159,7 +158,7 @@ export default function ResetPasswordScreen() {
                         <Text style={styles.primaryButtonText}>Update Password</Text>
                     )}
                 </TouchableOpacity>
-            </ScrollView>
+            </View>
         </KeyboardAvoidingView>
     );
 }
@@ -172,8 +171,8 @@ const styles = StyleSheet.create({
     content: {
         flexGrow: 1,
         justifyContent: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
     },
     centerContainer: {
         flex: 1,
@@ -183,17 +182,17 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
     },
     title: {
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: '700',
         color: Colors.text.primary,
-        marginBottom: 8,
+        marginBottom: 4,
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 12,
         color: Colors.text.secondary,
         textAlign: 'center',
-        marginBottom: 18,
+        marginBottom: 10,
     },
     errorTitle: {
         marginTop: 12,
@@ -211,29 +210,29 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     inputGroup: {
-        marginBottom: 12,
+        marginBottom: 8,
     },
     label: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
         color: Colors.text.primary,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: Colors.border,
-        borderRadius: 12,
-        height: 52,
-        paddingHorizontal: 14,
+        borderRadius: 8,
+        height: 38,
+        paddingHorizontal: 8,
         backgroundColor: Colors.background.primary,
-        gap: 8,
+        gap: 4,
     },
     input: {
         flex: 1,
         color: Colors.text.primary,
-        fontSize: 15,
+        fontSize: 13,
     },
     inputError: {
         borderColor: Colors.error,
@@ -245,18 +244,18 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         backgroundColor: Colors.primary,
-        height: 52,
-        borderRadius: 12,
+        height: 38,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 12,
+        marginTop: 8,
     },
     disabledButton: {
         opacity: 0.6,
     },
     primaryButtonText: {
         color: Colors.white,
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: '700',
     },
 });
