@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
@@ -10,6 +11,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signOut: () => Promise<void>;
     resetPassword: (email: string) => Promise<{ error: any }>;
+    updatePassword: (password: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +22,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const applySessionFromUrl = async (url: string) => {
+            try {
+                const normalizedUrl = url.includes('#') ? url.replace('#', '?') : url;
+                const parsed = Linking.parse(normalizedUrl);
+                const accessToken = parsed.queryParams?.access_token;
+                const refreshToken = parsed.queryParams?.refresh_token;
+
+                if (
+                    typeof accessToken === 'string' &&
+                    typeof refreshToken === 'string'
+                ) {
+                    const { error } = await supabase.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken,
+                    });
+
+                    if (error) {
+                        console.error('[Auth] Failed to set session from deep link:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('[Auth] Failed to parse deep link URL:', error);
+            }
+        };
+
         // Get initial session
         supabase.auth
             .getSession()
@@ -35,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setLoading(false);
             });
 
+        Linking.getInitialURL()
+            .then((url) => {
+                if (url) {
+                    return applySessionFromUrl(url);
+                }
+            })
+            .catch((error) => {
+                console.error('[Auth] Failed to read initial URL:', error);
+            });
+
         // Listen for auth changes
         const {
             data: { subscription },
@@ -44,7 +81,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        const deepLinkSubscription = Linking.addEventListener('url', ({ url }) => {
+            void applySessionFromUrl(url);
+        });
+
+        return () => {
+            subscription.unsubscribe();
+            deepLinkSubscription.remove();
+        };
     }, []);
 
     const signUp = async (email: string, password: string, fullName: string) => {
@@ -87,9 +131,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const resetPassword = async (email: string) => {
         try {
+            const redirectTo = Linking.createURL('/reset-password');
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: 'financeflow://reset-password',
+                redirectTo,
             });
+            return { error };
+        } catch (error) {
+            return { error };
+        }
+    };
+
+    const updatePassword = async (password: string) => {
+        try {
+            const { error } = await supabase.auth.updateUser({ password });
             return { error };
         } catch (error) {
             return { error };
@@ -104,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        updatePassword,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
