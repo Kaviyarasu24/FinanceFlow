@@ -2,12 +2,13 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -17,18 +18,19 @@ import {
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();
-    const { resetPassword, user, loading: authLoading } = useAuth();
+    const { resetPassword, verifyResetOtpAndUpdatePassword, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
+    const [otp, setOtp] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isOtpStep, setIsOtpStep] = useState(false);
     const [emailError, setEmailError] = useState('');
-    const [submitted, setSubmitted] = useState(false);
+    const [otpError, setOtpError] = useState('');
+    const [newPasswordError, setNewPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // Redirect if already authenticated
-    useEffect(() => {
-        if (!authLoading && user) {
-            router.replace('/(home)');
-        }
-    }, [user, authLoading, router]);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,7 +46,7 @@ export default function ForgotPasswordScreen() {
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSendOtp = async () => {
         if (!email) {
             setEmailError('Email is required');
             return;
@@ -59,37 +61,103 @@ export default function ForgotPasswordScreen() {
         setLoading(false);
 
         if (error) {
-            Alert.alert('Error', error.message || 'Failed to send reset email');
+            Alert.alert('Error', error.message || 'Failed to send verification code');
         } else {
-            setSubmitted(true);
+            setIsOtpStep(true);
+            Alert.alert('Code sent', 'Enter the OTP from your email and set a new password.');
         }
     };
 
-    if (submitted) {
-        return (
-            <View style={styles.container}>
-                <View style={styles.successContainer}>
-                    <View style={styles.successIcon}>
-                        <Ionicons name="checkmark-circle" size={80} color={Colors.primary} />
-                    </View>
-                    <Text style={styles.successTitle}>Check Your Email</Text>
-                    <Text style={styles.successMessage}>
-                        We have sent password reset instructions to {email}
-                    </Text>
-                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                        <Text style={styles.backButtonText}>Back to Sign In</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        );
-    }
+    const handleOtpChange = (text: string) => {
+        const sanitized = text.replace(/\D/g, '').slice(0, 8);
+        setOtp(sanitized);
+        if (sanitized.length > 0 && sanitized.length < 8) {
+            setOtpError('OTP must be 8 digits');
+        } else {
+            setOtpError('');
+        }
+    };
+
+    const handleNewPasswordChange = (text: string) => {
+        setNewPassword(text);
+        if (text && text.length < 6) {
+            setNewPasswordError('Password must be at least 6 characters');
+        } else {
+            setNewPasswordError('');
+        }
+
+        if (confirmPassword && text !== confirmPassword) {
+            setConfirmPasswordError('Passwords do not match');
+        } else if (confirmPassword) {
+            setConfirmPasswordError('');
+        }
+    };
+
+    const handleConfirmPasswordChange = (text: string) => {
+        setConfirmPassword(text);
+        if (text && text !== newPassword) {
+            setConfirmPasswordError('Passwords do not match');
+        } else {
+            setConfirmPasswordError('');
+        }
+    };
+
+    const handleVerifyAndReset = async () => {
+        let hasError = false;
+
+        if (!otp) {
+            setOtpError('OTP is required');
+            hasError = true;
+        } else if (otp.length !== 8) {
+            setOtpError('OTP must be 8 digits');
+            hasError = true;
+        }
+
+        if (!newPassword) {
+            setNewPasswordError('New password is required');
+            hasError = true;
+        }
+
+        if (!confirmPassword) {
+            setConfirmPasswordError('Please confirm your password');
+            hasError = true;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setConfirmPasswordError('Passwords do not match');
+            hasError = true;
+        }
+
+        if (hasError || otpError || newPasswordError || confirmPasswordError) {
+            return;
+        }
+
+        setLoading(true);
+        const { error } = await verifyResetOtpAndUpdatePassword(email, otp, newPassword);
+        setLoading(false);
+
+        if (error) {
+            Alert.alert(
+                'Reset failed',
+                error.message || 'Invalid or expired OTP. Please request a new code.'
+            );
+            return;
+        }
+
+        Alert.alert('Success', 'Password updated successfully.', [
+            {
+                text: 'Go to Sign In',
+                onPress: () => router.replace('/sign-in'),
+            },
+        ]);
+    };
 
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <View style={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 {/* Header */}
                 <TouchableOpacity style={styles.backIconButton} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
@@ -99,9 +167,11 @@ export default function ForgotPasswordScreen() {
                     <View style={styles.iconContainer}>
                         <Ionicons name="lock-closed-outline" size={48} color={Colors.primary} />
                     </View>
-                    <Text style={styles.title}>Forgot Password?</Text>
+                    <Text style={styles.title}>Reset Password</Text>
                     <Text style={styles.subtitle}>
-                        Enter your email address and we will send you instructions to reset your password
+                        {isOtpStep
+                            ? `Enter the 6-digit OTP sent to ${email} and set your new password`
+                            : 'Enter your email address and we will send a 6-digit OTP'}
                     </Text>
                 </View>
 
@@ -118,30 +188,119 @@ export default function ForgotPasswordScreen() {
                             onChangeText={handleEmailChange}
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            editable={!isOtpStep}
                         />
                     </View>
                     {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                 </View>
 
+                {isOtpStep ? (
+                    <>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>OTP Code</Text>
+                            <View style={[styles.inputContainer, otpError ? styles.inputError : null]}>
+                                <Ionicons name="key-outline" size={20} color={Colors.text.secondary} />
+                                <TextInput
+                                    style={[styles.input, styles.otpInput]}
+                                    placeholder="Enter 8-digit OTP"
+                                    placeholderTextColor={Colors.text.light}
+                                    value={otp}
+                                    onChangeText={handleOtpChange}
+                                    keyboardType="number-pad"
+                                    maxLength={8}
+                                />
+                            </View>
+                            {otpError ? <Text style={styles.errorText}>{otpError}</Text> : null}
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>New Password</Text>
+                            <View style={[styles.inputContainer, newPasswordError ? styles.inputError : null]}>
+                                <Ionicons name="lock-closed-outline" size={20} color={Colors.text.secondary} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter new password"
+                                    placeholderTextColor={Colors.text.light}
+                                    value={newPassword}
+                                    onChangeText={handleNewPasswordChange}
+                                    autoCapitalize="none"
+                                    secureTextEntry={!showNewPassword}
+                                />
+                                <TouchableOpacity onPress={() => setShowNewPassword((prev) => !prev)}>
+                                    <Ionicons
+                                        name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                                        size={20}
+                                        color={Colors.text.secondary}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            {newPasswordError ? <Text style={styles.errorText}>{newPasswordError}</Text> : null}
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Confirm Password</Text>
+                            <View style={[styles.inputContainer, confirmPasswordError ? styles.inputError : null]}>
+                                <Ionicons name="lock-closed-outline" size={20} color={Colors.text.secondary} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Confirm new password"
+                                    placeholderTextColor={Colors.text.light}
+                                    value={confirmPassword}
+                                    onChangeText={handleConfirmPasswordChange}
+                                    autoCapitalize="none"
+                                    secureTextEntry={!showConfirmPassword}
+                                />
+                                <TouchableOpacity onPress={() => setShowConfirmPassword((prev) => !prev)}>
+                                    <Ionicons
+                                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                                        size={20}
+                                        color={Colors.text.secondary}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
+                        </View>
+                    </>
+                ) : null}
+
                 {/* Submit Button */}
                 <TouchableOpacity
-                    style={[styles.submitButton, (!email || emailError || loading) && styles.submitButtonDisabled]}
-                    onPress={handleSubmit}
-                    disabled={!email || !!emailError || loading}
+                    style={[
+                        styles.submitButton,
+                        (
+                            isOtpStep
+                                ? !otp || !newPassword || !confirmPassword || !!otpError || !!newPasswordError || !!confirmPasswordError || loading || authLoading
+                                : !email || !!emailError || loading || authLoading
+                        ) && styles.submitButtonDisabled,
+                    ]}
+                    onPress={isOtpStep ? handleVerifyAndReset : handleSendOtp}
+                    disabled={
+                        isOtpStep
+                            ? !otp || !newPassword || !confirmPassword || !!otpError || !!newPasswordError || !!confirmPasswordError || loading || authLoading
+                            : !email || !!emailError || loading || authLoading
+                    }
                 >
-                    {loading ? (
+                    {loading || authLoading ? (
                         <ActivityIndicator color={Colors.white} />
                     ) : (
-                        <Text style={styles.submitButtonText}>Send Reset Link</Text>
+                        <Text style={styles.submitButtonText}>
+                            {isOtpStep ? 'Verify OTP & Update Password' : 'Send OTP'}
+                        </Text>
                     )}
                 </TouchableOpacity>
+
+                {isOtpStep ? (
+                    <TouchableOpacity style={styles.resendLink} onPress={handleSendOtp} disabled={loading}>
+                        <Text style={styles.resendLinkText}>Resend OTP</Text>
+                    </TouchableOpacity>
+                ) : null}
 
                 {/* Back to Sign In */}
                 <TouchableOpacity style={styles.signInLink} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={16} color={Colors.primary} />
                     <Text style={styles.signInLinkText}>Back to Sign In</Text>
                 </TouchableOpacity>
-            </View>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
@@ -152,9 +311,10 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         padding: 24,
-        paddingTop: 60,
+        paddingTop: 24,
+        paddingBottom: 24,
     },
     backIconButton: {
         width: 40,
@@ -167,32 +327,32 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 24,
     },
     iconContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        width: 76,
+        height: 76,
+        borderRadius: 38,
         backgroundColor: `${Colors.primary}20`,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: Colors.text.primary,
         marginBottom: 12,
     },
+    title: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: Colors.text.primary,
+        marginBottom: 8,
+    },
     subtitle: {
-        fontSize: 15,
+        fontSize: 14,
         color: Colors.text.secondary,
         textAlign: 'center',
-        lineHeight: 22,
-        paddingHorizontal: 20,
+        lineHeight: 20,
+        paddingHorizontal: 8,
     },
     inputGroup: {
-        marginBottom: 24,
+        marginBottom: 14,
     },
     label: {
         fontSize: 14,
@@ -219,6 +379,9 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         color: Colors.text.primary,
+    },
+    otpInput: {
+        letterSpacing: 4,
     },
     errorText: {
         fontSize: 12,
@@ -258,37 +421,14 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.primary,
     },
-    successContainer: {
-        flex: 1,
+    resendLink: {
+        marginTop: -8,
+        marginBottom: 20,
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
     },
-    successIcon: {
-        marginBottom: 24,
-    },
-    successTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: Colors.text.primary,
-        marginBottom: 12,
-    },
-    successMessage: {
-        fontSize: 15,
-        color: Colors.text.secondary,
-        textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 32,
-    },
-    backButton: {
-        backgroundColor: Colors.primary,
-        borderRadius: 12,
-        paddingHorizontal: 32,
-        paddingVertical: 16,
-    },
-    backButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: Colors.white,
+    resendLinkText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.primary,
     },
 });

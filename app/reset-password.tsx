@@ -8,6 +8,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -97,7 +98,7 @@ export default function ResetPasswordScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <View style={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.title}>Set a New Password</Text>
                 <Text style={styles.subtitle}>Choose a secure password for your account.</Text>
 
@@ -158,7 +159,7 @@ export default function ResetPasswordScreen() {
                         <Text style={styles.primaryButtonText}>Update Password</Text>
                     )}
                 </TouchableOpacity>
-            </View>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
@@ -169,9 +170,10 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: 'center',
-        padding: 24,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
     },
     centerContainer: {
         flex: 1,
@@ -181,17 +183,17 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white,
     },
     title: {
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: '700',
         color: Colors.text.primary,
         marginBottom: 8,
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: 15,
+        fontSize: 14,
         color: Colors.text.secondary,
         textAlign: 'center',
-        marginBottom: 24,
+        marginBottom: 18,
     },
     errorTitle: {
         marginTop: 12,
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     inputGroup: {
-        marginBottom: 16,
+        marginBottom: 12,
     },
     label: {
         fontSize: 14,

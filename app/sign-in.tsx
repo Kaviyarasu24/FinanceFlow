@@ -68,22 +68,44 @@ export default function SignInScreen() {
             return;
         }
 
-        setAuthError('');
-        setLoading(true);
-        const { error } = await signIn(email, password);
-        setLoading(false);
+        try {
+            setAuthError('');
+            setLoading(true);
+            const { error } = await signIn(email, password);
 
-        if (error) {
-            // Display error message inline
-            if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('credentials')) {
-                setAuthError('Invalid email or password. Please try again.');
-            } else if (error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('no account')) {
-                setAuthError('No account found with this email.');
-            } else {
-                setAuthError(error.message || 'Failed to sign in. Please try again.');
+            if (error) {
+                const message =
+                    typeof error?.message === 'string'
+                        ? error.message
+                        : 'Failed to sign in. Please try again.';
+                const normalizedMessage = message.toLowerCase();
+
+                if (
+                    normalizedMessage.includes('invalid') ||
+                    normalizedMessage.includes('credentials')
+                ) {
+                    setAuthError('Invalid email or password. Please try again.');
+                } else if (
+                    normalizedMessage.includes('not found') ||
+                    normalizedMessage.includes('no account')
+                ) {
+                    setAuthError('No account found with this email.');
+                } else if (
+                    normalizedMessage.includes('network') ||
+                    normalizedMessage.includes('fetch')
+                ) {
+                    setAuthError('Network error. Check your internet connection and try again.');
+                } else {
+                    setAuthError(message);
+                }
+                return;
             }
-        } else {
+
             router.replace('/(home)');
+        } catch (_err) {
+            setAuthError('Failed to sign in. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 

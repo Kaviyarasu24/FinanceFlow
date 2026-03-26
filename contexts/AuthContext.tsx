@@ -11,6 +11,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signOut: () => Promise<void>;
     resetPassword: (email: string) => Promise<{ error: any }>;
+    verifyResetOtpAndUpdatePassword: (email: string, token: string, password: string) => Promise<{ error: any }>;
     updatePassword: (password: string) => Promise<{ error: any }>;
 }
 
@@ -28,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const parsed = Linking.parse(normalizedUrl);
                 const accessToken = parsed.queryParams?.access_token;
                 const refreshToken = parsed.queryParams?.refresh_token;
+                const tokenHash = parsed.queryParams?.token_hash;
+                const linkType = parsed.queryParams?.type;
 
                 if (
                     typeof accessToken === 'string' &&
@@ -40,6 +43,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     if (error) {
                         console.error('[Auth] Failed to set session from deep link:', error);
+                    }
+                    return;
+                }
+
+                if (
+                    typeof tokenHash === 'string' &&
+                    linkType === 'recovery'
+                ) {
+                    const { error } = await supabase.auth.verifyOtp({
+                        type: 'recovery',
+                        token_hash: tokenHash,
+                    });
+
+                    if (error) {
+                        console.error('[Auth] Failed to verify recovery token from deep link:', error);
                     }
                 }
             } catch (error) {
@@ -119,7 +137,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             return { error };
         } catch (error) {
-            return { error };
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : typeof error === 'string'
+                        ? error
+                        : 'Failed to sign in. Please try again.';
+            return { error: { message } };
         }
     };
 
@@ -136,6 +160,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 redirectTo,
             });
             return { error };
+        } catch (error) {
+            return { error };
+        }
+    };
+
+    const verifyResetOtpAndUpdatePassword = async (
+        email: string,
+        token: string,
+        password: string
+    ) => {
+        try {
+            const { error: verifyError } = await supabase.auth.verifyOtp({
+                email,
+                token,
+                type: 'recovery',
+            });
+
+            if (verifyError) {
+                return { error: verifyError };
+            }
+
+            const { error: updateError } = await supabase.auth.updateUser({ password });
+            return { error: updateError };
         } catch (error) {
             return { error };
         }
@@ -158,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        verifyResetOtpAndUpdatePassword,
         updatePassword,
     };
 
